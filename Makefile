@@ -19,3 +19,6 @@ dmg: app
 
 clean:
 	rm -rf build dist
+
+notarize:
+	./scripts/notarize.sh

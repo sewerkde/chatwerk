@@ -14,11 +14,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.sewerk.chatwerk
         PRODUCT_NAME: Chatwerk
-        MARKETING_VERSION: 0.1.1
-        CURRENT_PROJECT_VERSION: 2
+        MARKETING_VERSION: 0.1.2
+        CURRENT_PROJECT_VERSION: 3
         SWIFT_VERSION: 5.0
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_ENTITLEMENTS: Chatwerk/Chatwerk.entitlements
         ENABLE_HARDENED_RUNTIME: NO
         ENABLE_APP_SANDBOX: NO
         GENERATE_INFOPLIST_FILE: YES

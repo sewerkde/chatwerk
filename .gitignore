@@ -10,3 +10,4 @@ xcuserdata/
 *.db-wal
 *.dmg
 .DS_Store
+.notarize.env
