@@ -17,14 +17,17 @@ Chatwerk fixes that.
 
 ## Features
 
-- **📋 Every session, one list** — all sessions from all projects, sorted by last activity, with automatic titles, project, size, message count and git branch
-- **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index), not just titles. Press **⌘K** for a Spotlight-style quick search from anywhere in the app
-- **🏷 Tags, notes & favorites** — organize sessions your way. Stored only in Chatwerk's own database, never inside `~/.claude`
-- **▶️ One-click resume** — double-click a session and Chatwerk opens your terminal in the right project directory and runs `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp**
-- **📄 Transcript viewer** — read any chat inside the app without resuming it; tool calls and thinking blocks stay collapsed. Export as Markdown
-- **🟢 Live session badges** — see which sessions are running in Claude Code right now
-- **📊 Statistics & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including all sidecar data
-- **🔒 100% local** — Chatwerk reads your data from `~/.claude` and never sends anything anywhere
+- **📋 Every session, one list** — all sessions from all projects with automatic titles, grouped by time (Today / Yesterday / This Week / …), with size, message count and last-prompt preview per row
+- **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index, built incrementally in the background). Press **⌘K** for a Spotlight-style quick search: type, arrow keys, hit ↩ to resume
+- **🏷 Tags, notes & favorites** — organize sessions your way; an **Unsorted** smart filter surfaces chats you haven't organized yet, so nothing gets lost. Stored only in Chatwerk's own database, never inside `~/.claude`
+- **▶️ One-click resume** — double-click (or ⌘↩) and your terminal opens in the right project directory running `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp** (Warp via Launch Configurations — the command runs automatically)
+- **🟢 Live status** — running sessions are badged in real time: green **Working…** while Claude is busy, orange **Your turn** row highlight the moment Claude finishes and waits for you
+- **🔔 Ready alerts** — optional sound (14 system tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
+- **📄 Transcript viewer** — read any chat without resuming it: newest exchange on top (flippable), chat-style bubbles with role avatars and timestamps, inline markdown + code blocks rendered, tool runs collapsed into single "background steps" rows. Export as Markdown
+- **📊 Statistics & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps
+- **🎨 Themes** — light/dark/system plus 8 accent colors, all dark-mode tuned
+- **🖥 Menu bar** — recent sessions and alert toggle one click away
+- **🔒 100% local & zero permissions** — Chatwerk reads your data from disk and never sends anything anywhere. The only permission it ever asks for is the one-time macOS Automation prompt to drive your terminal
 
 ## Install
 
@@ -45,14 +48,14 @@ cd chatwerk
 make app          # builds Release → dist/Chatwerk.app
 ```
 
-Or open `Chatwerk.xcodeproj` in Xcode and hit Run.
+Or run `xcodegen generate` and open `Chatwerk.xcodeproj` in Xcode. The app is pure Swift/SwiftUI with **zero third-party dependencies** — the full text index uses the system SQLite's FTS5.
 
 ## How it works
 
 Claude Code stores every session as a JSONL transcript under `~/.claude/projects/<encoded-cwd>/<uuid>.jsonl`. Chatwerk:
 
-1. **Scans** those files (cheap `stat` pass every few seconds — new and changed sessions appear live)
-2. **Reads only head/tail chunks** of each transcript for titles and metadata, so even 250 MB sessions list instantly
+1. **Scans** those files with a cheap stat pass every few seconds — new and changed sessions appear live, and `~/.claude/sessions` tells it which ones are running right now
+2. **Reads only head/tail chunks** of each transcript for titles (Claude Code's own `ai-title` lines) and metadata, so even 250 MB sessions list instantly
 3. **Indexes** message text incrementally into a local SQLite FTS5 database (`~/Library/Application Support/Chatwerk/index.db`) — transcripts are append-only, so only new bytes get parsed
 4. **Resumes** sessions by telling your terminal to run `cd <project> && claude --resume <uuid>`
 
@@ -60,8 +63,11 @@ Your notes, tags, favorites and custom titles live only in Chatwerk's database. 
 
 ## FAQ
 
-**Does it work with the Claude Code versions before 2.x?**
-Chatwerk reads `ai-title` lines written by recent Claude Code versions and falls back to the first user prompt for older transcripts.
+**What permissions does Chatwerk need?**
+Just one, and only once: permission to send your terminal app the resume command (macOS "Automation" prompt on first use). Chatwerk reads `~/.claude` directly — that requires no permission — and never touches anything else.
+
+**I run Claude Code with `CLAUDE_CONFIG_DIR` — will it find my sessions?**
+Yes: point Settings → *Data folder* at your custom directory. The `claude` binary path is configurable there too.
 
 **Why does deleting ask about "sidecar data"?**
 A session is more than its transcript: Claude Code also keeps file-edit backups, background task state and subagent transcripts. Chatwerk removes all of it so nothing is left behind.
@@ -69,8 +75,14 @@ A session is more than its transcript: Claude Code also keeps file-edit backups,
 **Warp support?**
 Warp can't be scripted with AppleScript, so Chatwerk drives it with a [Launch Configuration](https://docs.warp.dev/features/sessions/launch-configurations): the resume command runs automatically in the right directory. The command is also copied to your clipboard as a fallback for older Warp versions.
 
-**What permissions does Chatwerk need?**
-Just one, and only once: permission to send your terminal app the resume command (macOS "Automation" prompt on first use). Chatwerk reads `~/.claude` directly — that requires no permission — and never touches anything else.
+**Will you support other AI CLIs (Codex, Gemini CLI, …)?**
+Maybe later — the scanner/indexer layer is provider-shaped, but v1 stays focused on doing one thing well. Open an issue if you'd use it.
+
+## Roadmap
+
+- Local-AI chat summaries and auto-tag suggestions (fully offline)
+- Global quick-search hotkey (system-wide ⌘K)
+- Notarized builds + Homebrew cask
 
 ## Disclaimer
 
