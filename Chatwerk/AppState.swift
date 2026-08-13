@@ -169,11 +169,14 @@ final class AppState: ObservableObject {
 
     /// Last seen status per live session ("busy", "idle", …) for ready-alerts.
     private var lastLiveStatus: [String: String] = [:]
+    /// Current status per live session, applied to rows as `liveStatus`.
+    private var liveStatusById: [String: String] = [:]
 
     private func refreshLive() {
         let live = LiveSessions.current()
         let ids = Set(live.keys)
         if ids != liveIds { liveIds = ids }
+        liveStatusById = live.compactMapValues { $0.status }
         applyLiveBadges()
 
         // Alert when a session we've previously seen busy becomes idle again:
@@ -196,7 +199,9 @@ final class AppState: ObservableObject {
     private func applyLiveBadges() {
         for i in sessions.indices {
             let isLive = liveIds.contains(sessions[i].uuid)
+            let status = liveStatusById[sessions[i].uuid]
             if sessions[i].isLive != isLive { sessions[i].isLive = isLive }
+            if sessions[i].liveStatus != status { sessions[i].liveStatus = status }
         }
     }
 

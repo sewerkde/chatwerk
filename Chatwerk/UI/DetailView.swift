@@ -116,8 +116,12 @@ struct DetailView: View {
                     .onSubmit { saveMeta() }
                     .onChange(of: customTitle) { _, _ in saveMeta() }
 
-                if current.isLive {
-                    Label("Running", systemImage: "dot.radiowaves.left.and.right")
+                if current.isWaitingForYou {
+                    Label("Waiting for you", systemImage: "hand.raised.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if current.isWorking {
+                    Label("Working…", systemImage: "dot.radiowaves.left.and.right")
                         .font(.caption)
                         .foregroundStyle(.green)
                 }

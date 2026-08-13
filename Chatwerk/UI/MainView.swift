@@ -201,6 +201,7 @@ struct SessionListView: View {
                 ForEach(state.visibleSessions) { session in
                     SessionRowView(session: session, pendingDelete: $pendingDelete)
                         .tag(session.id)
+                        .listRowBackground(rowBackground(for: session))
                 }
             } else {
                 ForEach(groupedSessions, id: \.label) { group in
@@ -208,6 +209,7 @@ struct SessionListView: View {
                         ForEach(group.items) { session in
                             SessionRowView(session: session, pendingDelete: $pendingDelete)
                                 .tag(session.id)
+                                .listRowBackground(rowBackground(for: session))
                         }
                     }
                 }
@@ -224,6 +226,15 @@ struct SessionListView: View {
             }
         }
         .navigationTitle(navigationTitle)
+    }
+
+    /// Attention tint: orange = Claude answered and waits for you,
+    /// faint green = Claude is still working. Selection highlight stays intact.
+    private func rowBackground(for session: SessionInfo) -> Color? {
+        guard session.id != state.selectedSessionId else { return nil }
+        if session.isWaitingForYou { return Color.orange.opacity(0.12) }
+        if session.isWorking { return Color.green.opacity(0.07) }
+        return nil
     }
 
     /// Time buckets so scanning by memory ("it was last week…") works.
@@ -276,13 +287,31 @@ struct SessionRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                if session.isLive {
+                if session.isWaitingForYou {
+                    Circle().fill(.orange).frame(width: 8, height: 8)
+                        .help("Claude answered — waiting for you")
+                } else if session.isWorking {
                     Circle().fill(.green).frame(width: 8, height: 8)
-                        .help("Running in Claude Code right now")
+                        .help("Claude is working right now")
                 }
                 Text(session.displayTitle)
                     .font(.headline)
                     .lineLimit(1)
+                if session.isWaitingForYou {
+                    Text("Your turn")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(.orange.opacity(0.2), in: Capsule())
+                        .foregroundStyle(.orange)
+                } else if session.isWorking {
+                    Text("Working…")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(.green.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.green)
+                }
                 Spacer()
                 if session.favorite {
                     Image(systemName: "star.fill")

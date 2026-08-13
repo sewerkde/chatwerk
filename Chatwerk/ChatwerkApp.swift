@@ -55,6 +55,7 @@ private struct MenuBarContent: View {
     private func menuTitle(_ s: SessionInfo) -> String {
         let title = s.displayTitle
         let short = title.count > 50 ? String(title.prefix(50)) + "…" : title
-        return (s.isLive ? "🟢 " : "") + short
+        let badge = s.isWaitingForYou ? "🟠 " : (s.isLive ? "🟢 " : "")
+        return badge + short
     }
 }

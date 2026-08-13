@@ -26,7 +26,13 @@ struct SessionInfo: Identifiable, Hashable {
 
     // transient
     var isLive: Bool = false
+    var liveStatus: String?    // "idle", "busy", … from ~/.claude/sessions
     var searchSnippet: String?
+
+    /// Running and idle → Claude answered and is waiting for the user.
+    var isWaitingForYou: Bool { isLive && liveStatus == "idle" }
+    /// Running and not idle → Claude is still working.
+    var isWorking: Bool { isLive && liveStatus != "idle" }
 
     var displayTitle: String {
         if let t = customTitle, !t.isEmpty { return t }
