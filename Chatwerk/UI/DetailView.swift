@@ -182,8 +182,9 @@ struct DetailView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.12)))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.15)))
+        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
     }
 
     /// The core "I forgot where I was" feature: last question + Claude's last
@@ -197,26 +198,28 @@ struct DetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(accent)
                 if let lastPrompt = current.lastPrompt, !lastPrompt.isEmpty {
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("You")
-                            .font(.caption.bold())
+                            .font(.caption.weight(.bold))
                             .foregroundStyle(accent)
-                            .frame(width: 44, alignment: .trailing)
-                        Text(lastPrompt)
-                            .font(.callout)
-                            .lineLimit(3)
+                            .frame(width: 48, alignment: .trailing)
+                        Text(TranscriptLoader.plainPreview(lastPrompt, maxLength: 240))
+                            .font(.callout.weight(.medium))
+                            .lineLimit(2)
+                            .lineSpacing(2)
                             .textSelection(.enabled)
                     }
                 }
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text("Claude")
-                        .font(.caption.bold())
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .trailing)
-                    Text(String(lastAnswer.text.prefix(700)))
+                        .frame(width: 48, alignment: .trailing)
+                    Text(TranscriptLoader.plainPreview(lastAnswer.text))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .lineLimit(6)
+                        .lineLimit(4)
+                        .lineSpacing(2)
                         .textSelection(.enabled)
                 }
                 Button {
@@ -226,12 +229,15 @@ struct DetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .padding(.leading, 52)
+                .padding(.leading, 58)
+                .padding(.top, 2)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(accent.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.25)))
+            .background(accent.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.3), lineWidth: 1))
+            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         }
     }
 
@@ -292,8 +298,8 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 if state.tags.isEmpty {
                     Text("No tags yet — create one from the sidebar to group related chats.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 } else {
                     FlowLayoutLite(spacing: 6) {
                         ForEach(state.tags) { tag in
@@ -454,12 +460,13 @@ struct TranscriptEntryView: View {
             .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                isUser ? accent.opacity(0.07) : Color.secondary.opacity(0.05),
+                isUser ? accent.opacity(0.06) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 10)
             )
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isUser ? accent.opacity(0.15) : Color.secondary.opacity(0.08))
+                    .stroke(isUser ? accent.opacity(0.2) : Color.secondary.opacity(0.12))
             )
         case .thinking, .toolUse, .toolResult:
             DisclosureGroup(isExpanded: $expanded) {

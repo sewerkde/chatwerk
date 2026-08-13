@@ -144,6 +144,26 @@ enum TranscriptLoader {
         return out
     }
 
+    /// Markdown → plain sentence for previews (the "where you left off" card):
+    /// drops fences, heading markers, emphasis and link syntax, collapses
+    /// whitespace so raw `##`/`**` noise never reaches the UI.
+    static func plainPreview(_ text: String, maxLength: Int = 600) -> String {
+        var t = text
+        t = t.replacingOccurrences(of: "```[a-zA-Z0-9]*", with: " ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "\\[([^\\]]+)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?m)^#{1,6}\\s*", with: "", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?m)^[-*+]\\s+", with: "• ", options: .regularExpression)
+        for marker in ["**", "__", "`", "~~"] {
+            t = t.replacingOccurrences(of: marker, with: "")
+        }
+        t = t.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        t = t.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.count > maxLength {
+            t = String(t.prefix(maxLength)) + "…"
+        }
+        return t
+    }
+
     // MARK: - Export
 
     static func exportMarkdown(session: SessionInfo, page: TranscriptPage) -> String {
