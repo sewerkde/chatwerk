@@ -69,6 +69,9 @@ A session is more than its transcript: Claude Code also keeps file-edit backups,
 **Warp support?**
 Warp can't run commands via automation, so Chatwerk opens a Warp tab in the project folder and puts the resume command on your clipboard — just paste.
 
+**Why does macOS ask for folder permissions when I continue a session inside Chatwerk?**
+When a session runs in Chatwerk's embedded terminal, Claude Code is a child process of Chatwerk — so macOS attributes its file access (Desktop, Documents, Downloads, …) to Chatwerk and asks once per folder category, exactly like it once did for your terminal app. Nothing leaves your machine. Grant them once, or give Chatwerk **Full Disk Access** in System Settings → Privacy & Security to skip all prompts.
+
 ## Disclaimer
 
 Chatwerk is an independent, unofficial tool made by [Sewerk](https://sewerk.de). It is **not affiliated with, endorsed by, or sponsored by Anthropic**. "Claude" and "Claude Code" are trademarks of Anthropic, PBC — the names are used here only to describe compatibility. Chatwerk ships no Anthropic assets and talks to no Anthropic services; it only reads the local files Claude Code keeps on your own machine.

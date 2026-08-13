@@ -61,6 +61,17 @@ struct OnboardingView: View {
                 Text("You can change this anytime in Settings (⌘,).")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                        .imageScale(.small)
+                    Text("Heads-up: the first time you continue a session *inside* Chatwerk, macOS may ask for access to folders like Desktop or Documents. That's Claude Code reaching your project files as a child process of Chatwerk — the same permissions your terminal already has. Each one is asked only once. To skip them all, grant Chatwerk Full Disk Access in System Settings → Privacy & Security.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
             }
             .frame(maxWidth: 380)
 
