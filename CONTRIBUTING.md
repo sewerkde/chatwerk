@@ -55,4 +55,4 @@ Key invariants — please keep them:
 
 ## Reporting bugs
 
-Please include: macOS version, Claude Code version (`claude --version`), roughly how many sessions you have (`ls ~/.claude/projects/*/ | grep -c jsonl`), and Console output from Chatwerk if there is any.
+Please include: macOS version, Claude Code version (`claude --version`), roughly how many sessions you have (`ls ~/.claude/projects/*/*.jsonl | wc -l`), and Console output from Chatwerk if there is any.

@@ -1,0 +1,40 @@
+name: Bug report
+description: Something in Chatwerk doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: macos
+    attributes:
+      label: macOS version
+      options:
+        - macOS 14 (Sonoma)
+        - macOS 15 (Sequoia)
+        - macOS 26 (Tahoe)
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`
+      placeholder: "2.1.x"
+  - type: input
+    id: session-count
+    attributes:
+      label: Approximate session count
+      description: "`ls ~/.claude/projects/*/*.jsonl | wc -l`"
+      placeholder: "200"
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any Chatwerk messages from Console.app (filter for "Chatwerk"), if relevant.
+      render: text

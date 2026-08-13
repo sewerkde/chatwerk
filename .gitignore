@@ -1,6 +1,12 @@
 build/
 dist/
 DerivedData/
+Chatwerk.xcodeproj/
 *.xcuserstate
 xcuserdata/
+*.xcresult
+*.db
+*.db-shm
+*.db-wal
+*.dmg
 .DS_Store

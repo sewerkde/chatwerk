@@ -26,17 +26,18 @@ Chatwerk fixes that.
 
 ## Features
 
-- **📋 Every session, one list** — all sessions from all projects with automatic titles, grouped by time (Today / Yesterday / This Week / …), with size, message count and last-prompt preview per row
-- **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index, built incrementally in the background). Press **⌘K** for a Spotlight-style quick search: type, arrow keys, hit ↩ to resume
+- **📋 Every session, one list** — all sessions from all projects with automatic titles, grouped by time (Today / Yesterday / This Week / …), with size, message count and last-prompt preview per row — plus Claude Code's auto-cleanup countdown per session, so you see what's about to expire
+- **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index, built incrementally in the background). Press **⌘K** for a Spotlight-style palette: recents when empty, live results as you type, ↩ to resume
 - **🏷 Tags, notes & favorites** — organize sessions your way; an **Unsorted** smart filter surfaces chats you haven't organized yet, so nothing gets lost. Stored only in Chatwerk's own database, never inside `~/.claude`
 - **▶️ One-click resume** — double-click (or ⌘↩) and your terminal opens in the right project directory running `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp** (Warp via Launch Configurations — the command runs automatically)
-- **🟢 Live status** — running sessions are badged in real time: green **Working…** while Claude is busy, orange **Your turn** row highlight the moment Claude finishes and waits for you
-- **🔔 Ready alerts** — optional sound (14 system tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
-- **📄 Transcript viewer** — read any chat without resuming it: newest exchange on top (flippable), chat-style bubbles with role avatars and timestamps, inline markdown + code blocks rendered, tool runs collapsed into single "background steps" rows. Export as Markdown
-- **📊 Statistics & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps
+- **🟢 Live status** — running sessions are badged in real time: green while Claude is busy, orange row highlight the moment Claude finishes and waits for you
+- **🔔 Ready alerts** — optional sound (your system's alert tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
+- **📄 Transcript viewer** — read any chat without resuming it: newest exchange on top (flippable), chat-style bubbles with role avatars, day separators, inline markdown + code blocks rendered, tool runs collapsed into single "background steps" rows. Export as Markdown
+- **💰 Token & cost dashboard** — token usage per model with estimated API-list-price cost (cache-aware: reads 0.1×, 1h-TTL writes 2×, subagents included), a 30-day daily-cost chart and per-session token counts. Subscription users get a "what would this cost on the API" insight
+- **📊 Storage & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps
 - **🎨 Themes** — light/dark/system plus 8 accent colors, all dark-mode tuned
 - **🖥 Menu bar** — recent sessions and alert toggle one click away
-- **🔒 100% local & zero permissions** — Chatwerk reads your data from disk and never sends anything anywhere. The only permission it ever asks for is the one-time macOS Automation prompt to drive your terminal
+- **🔒 100% local** — Chatwerk reads your data from disk and never sends anything anywhere. It asks for at most two permissions: the one-time macOS Automation prompt to drive your terminal, and (only if you enable ready-alerts) notification permission
 
 ## Install
 
@@ -46,7 +47,9 @@ Chatwerk fixes that.
 
 Grab the latest `Chatwerk.dmg` from [Releases](../../releases), drag Chatwerk to Applications.
 
-> The app is not notarized yet. On first launch, right-click → **Open** (or allow it under System Settings → Privacy & Security).
+> **Gatekeeper:** the app is not notarized yet.
+> - **macOS 14:** right-click the app → **Open**.
+> - **macOS 15 and later:** try to open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway** — or run `xattr -d com.apple.quarantine /Applications/Chatwerk.app` in Terminal.
 
 ### Build from source
 
@@ -73,7 +76,7 @@ Your notes, tags, favorites and custom titles live only in Chatwerk's database. 
 ## FAQ
 
 **What permissions does Chatwerk need?**
-Just one, and only once: permission to send your terminal app the resume command (macOS "Automation" prompt on first use). Chatwerk reads `~/.claude` directly — that requires no permission — and never touches anything else.
+At most two: permission to send your terminal app the resume command (macOS "Automation" prompt on first use), and — only if you enable ready-alerts — the standard notification permission for the banner. Chatwerk reads `~/.claude` directly, which requires no permission, and never touches anything else.
 
 **I run Claude Code with `CLAUDE_CONFIG_DIR` — will it find my sessions?**
 Yes: point Settings → *Data folder* at your custom directory. The `claude` binary path is configurable there too.
