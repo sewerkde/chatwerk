@@ -158,14 +158,15 @@ final class AppState: ObservableObject {
     }
 
     private func refreshLive() {
-        let live = LiveSessions.current()
-        liveIds = Set(live.keys)
+        let ids = Set(LiveSessions.current().keys)
+        if ids != liveIds { liveIds = ids }
         applyLiveBadges()
     }
 
     private func applyLiveBadges() {
         for i in sessions.indices {
-            sessions[i].isLive = liveIds.contains(sessions[i].uuid)
+            let isLive = liveIds.contains(sessions[i].uuid)
+            if sessions[i].isLive != isLive { sessions[i].isLive = isLive }
         }
     }
 
