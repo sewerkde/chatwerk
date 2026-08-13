@@ -27,7 +27,6 @@ struct DetailView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        whereYouLeftOff
                         transcriptSection(proxy: proxy)
                         Color.clear.frame(height: 1).id("transcript-end")
                     }
@@ -185,70 +184,6 @@ struct DetailView: View {
         .padding(.vertical, 3)
         .background(.quaternary.opacity(0.5), in: Capsule())
         .help(help ?? text)
-    }
-
-    // MARK: - Where you left off
-
-    /// The core "I forgot where I was" feature: last question + Claude's last
-    /// answer, with a resume button — visible before anything else.
-    @ViewBuilder
-    private var whereYouLeftOff: some View {
-        if let t = transcript,
-           let lastAnswer = t.entries.last(where: { $0.kind == .assistant }) {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Where you left off", systemImage: "clock.arrow.circlepath")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(accent)
-                if let lastPrompt = current.lastPrompt, !lastPrompt.isEmpty {
-                    HStack(alignment: .top, spacing: 8) {
-                        RoleAvatar(isUser: true, accent: accent, size: 18)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("You")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(accent)
-                            Text(TranscriptLoader.plainPreview(lastPrompt, maxLength: 240))
-                                .font(.callout.weight(.medium))
-                                .lineLimit(2)
-                                .lineSpacing(2)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .textSelection(.enabled)
-                        }
-                    }
-                }
-                HStack(alignment: .top, spacing: 8) {
-                    RoleAvatar(isUser: false, accent: accent, size: 18)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Claude")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.primary)
-                        Text(TranscriptLoader.plainPreview(lastAnswer.text))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(4)
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                    }
-                }
-                HStack {
-                    Spacer()
-                    Button {
-                        state.open(current)
-                    } label: {
-                        Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-                .padding(.top, 4)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(accent.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.3), lineWidth: 1))
-            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
-        }
     }
 
     // MARK: - Inspector (tags, notes, technical details)
