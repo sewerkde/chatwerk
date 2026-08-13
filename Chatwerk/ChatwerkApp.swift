@@ -15,6 +15,28 @@ struct ChatwerkApp: App {
                 .preferredColorScheme(Theme.scheme(appearanceRaw))
                 .tint(Theme.accent(accentName))
         }
+        .commands {
+            // Single-window app: "File > New Window" only confuses.
+            CommandGroup(replacing: .newItem) {}
+            CommandMenu("Session") {
+                Button("Continue in \(state.terminalKind.rawValue)") {
+                    if let s = state.selectedSession { state.open(s) }
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(state.selectedSession == nil)
+                Button("Copy Resume Command") {
+                    if let s = state.selectedSession { state.copyCommand(s) }
+                }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(state.selectedSession == nil)
+                Divider()
+                Button(state.selectedSession?.favorite == true ? "Remove from Favorites" : "Add to Favorites") {
+                    if let s = state.selectedSession { state.toggleFavorite(s) }
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(state.selectedSession == nil)
+            }
+        }
 
         Settings {
             SettingsView()

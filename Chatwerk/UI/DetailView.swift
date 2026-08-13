@@ -71,7 +71,9 @@ struct DetailView: View {
                     state.open(current)
                 } label: {
                     Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                        .labelStyle(.titleAndIcon)
                 }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.return, modifiers: .command)
                 .help("Continue this session in your terminal (⌘↩)")
 

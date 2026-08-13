@@ -55,24 +55,22 @@ struct MainView: View {
                     }
                 }
             }
-            ToolbarItem {
+            ToolbarItemGroup {
                 Button {
                     showQuickSearch = true
                 } label: {
-                    Label("Quick Search", systemImage: "command")
+                    Label("Quick Search", systemImage: "sparkle.magnifyingglass")
                 }
                 .keyboardShortcut("k", modifiers: .command)
                 .help("Quick search everywhere (⌘K)")
-            }
-            ToolbarItem {
+
                 Button {
                     showStats = true
                 } label: {
-                    Label("Statistics", systemImage: "chart.bar")
+                    Label("Usage & Stats", systemImage: "chart.bar.xaxis")
                 }
-                .help("Statistics & cleanup")
-            }
-            ToolbarItem {
+                .help("Token usage, costs & cleanup")
+
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
@@ -164,7 +162,7 @@ struct SidebarView: View {
                 .badge(state.sessions.filter(\.isLive).count)
                 .tag(SidebarFilter.live)
                 Label { Text("Unsorted") } icon: {
-                    Image(systemName: "questionmark.folder").foregroundStyle(.orange)
+                    Image(systemName: "questionmark.folder.fill").foregroundStyle(.orange)
                 }
                 .badge(state.sessions.filter(\.isUnsorted).count)
                 .tag(SidebarFilter.unsorted)
@@ -179,7 +177,7 @@ struct SidebarView: View {
             }
             Section("Projects") {
                 ForEach(state.projectGroups) { group in
-                    Label(group.name, systemImage: "folder")
+                    Label(group.name, systemImage: "folder.fill")
                         .badge(group.sessionCount)
                         .tag(SidebarFilter.project(group.key))
                         .help(group.key)
@@ -419,17 +417,9 @@ struct SessionRowView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
                     .background(.quaternary.opacity(0.6), in: Capsule())
-                Text(session.modifiedAt.relativeString)
+                Text(metaLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(session.size.byteString)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if session.messageCount > 0 {
-                    Text("\(session.messageCount) msgs")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
             if !session.tags.isEmpty {
                 HStack(spacing: 4) {
@@ -461,7 +451,13 @@ struct SessionRowView: View {
                 .help("Last thing you asked in this session")
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
+    }
+
+    private var metaLine: String {
+        var parts = [session.modifiedAt.relativeString, session.size.byteString]
+        if session.messageCount > 0 { parts.append("\(session.messageCount) msgs") }
+        return parts.joined(separator: " · ")
     }
 }
 
