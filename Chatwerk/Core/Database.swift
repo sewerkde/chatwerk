@@ -136,7 +136,7 @@ final class Database {
     func upsertSessionStat(uuid: String, projectDir: String, path: String,
                            size: Int64, modifiedAt: Double, createdAt: Double?) {
         queue.sync {
-            run("""
+            _ = run("""
             INSERT INTO sessions (uuid, project_dir, path, size, modified_at, created_at)
             VALUES (?,?,?,?,?,?)
             ON CONFLICT(uuid, project_dir) DO UPDATE SET
@@ -150,7 +150,7 @@ final class Database {
                               firstPrompt: String?, lastPrompt: String?, gitBranch: String?,
                               model: String?, detailMtime: Double) {
         queue.sync {
-            run("""
+            _ = run("""
             UPDATE sessions SET cwd=?, title=?, first_prompt=?, last_prompt=?,
                 git_branch=COALESCE(?, git_branch), model=COALESCE(?, model), detail_mtime=?
             WHERE uuid=? AND project_dir=?
@@ -328,7 +328,7 @@ final class Database {
 
     func setMeta(uuid: String, customTitle: String?, note: String?, favorite: Bool) {
         queue.sync {
-            run("""
+            _ = run("""
             INSERT INTO meta (uuid, custom_title, note, favorite) VALUES (?,?,?,?)
             ON CONFLICT(uuid) DO UPDATE SET custom_title=excluded.custom_title,
                 note=excluded.note, favorite=excluded.favorite

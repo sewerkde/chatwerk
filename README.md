@@ -9,6 +9,15 @@
   Browse, search, tag and resume every Claude Code session on your Mac — with one click.
 </p>
 
+<p align="center">
+  <a href="../../releases"><img src="https://img.shields.io/github/v/release/serkanyildizdev/chatwerk?include_prereleases&label=release&color=FF6A00" alt="Release"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-SwiftUI-F05138?logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/dependencies-zero-brightgreen" alt="Zero dependencies">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
+  <a href="../../actions"><img src="https://img.shields.io/github/actions/workflow/status/serkanyildizdev/chatwerk/ci.yml?label=build" alt="CI"></a>
+</p>
+
 ---
 
 If you use [Claude Code](https://claude.com/claude-code) a lot, you know the problem: dozens of sessions spread across projects, no overview, and finding *that one chat from last week* means grepping through `~/.claude` or keeping a text file full of `claude --resume <uuid>` commands.
@@ -77,6 +86,10 @@ Warp can't be scripted with AppleScript, so Chatwerk drives it with a [Launch Co
 
 **Will you support other AI CLIs (Codex, Gemini CLI, …)?**
 Maybe later — the scanner/indexer layer is provider-shaped, but v1 stays focused on doing one thing well. Open an issue if you'd use it.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and a map of the codebase. Bug reports and feature ideas via [Issues](../../issues) — and if Chatwerk saves you time, a ⭐ helps others find it.
 
 ## Roadmap
 

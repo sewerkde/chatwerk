@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build (Release)
+        run: |
+          xcodebuild -project Chatwerk.xcodeproj -scheme Chatwerk \
+            -configuration Release -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- build
