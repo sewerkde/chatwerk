@@ -14,6 +14,7 @@ struct DetailView: View {
     @State private var loadingTranscript = false
     @State private var showNewTag = false
     @AppStorage("showInfoPanel") private var showInfoPanel = false
+    @AppStorage("transcriptNewestFirst") private var newestFirst = true
 
     private var current: SessionInfo {
         state.sessions.first { $0.id == session.id } ?? session
@@ -394,12 +395,22 @@ struct DetailView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Button {
-                    withAnimation { proxy.scrollTo("transcript-end", anchor: .bottom) }
+                    newestFirst.toggle()
                 } label: {
-                    Label("Latest", systemImage: "arrow.down.to.line")
+                    Label(newestFirst ? "Newest first" : "Oldest first",
+                          systemImage: "arrow.up.arrow.down")
                 }
                 .controlSize(.small)
-                .help("Jump to the end of the conversation")
+                .help("Flip transcript order")
+                if !newestFirst {
+                    Button {
+                        withAnimation { proxy.scrollTo("transcript-end", anchor: .bottom) }
+                    } label: {
+                        Label("Latest", systemImage: "arrow.down.to.line")
+                    }
+                    .controlSize(.small)
+                    .help("Jump to the end of the conversation")
+                }
             }
         }
 
@@ -413,8 +424,9 @@ struct DetailView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, 24)
         } else if let t = transcript {
+            let ordered = newestFirst ? Array(t.entries.reversed()) : t.entries
             LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(t.entries) { entry in
+                ForEach(ordered) { entry in
                     TranscriptEntryView(entry: entry)
                 }
             }
