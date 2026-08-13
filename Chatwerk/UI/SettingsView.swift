@@ -24,9 +24,8 @@ struct SettingsView: View {
                 LabeledContent("Accent color") {
                     HStack(spacing: 8) {
                         ForEach(Theme.accents, id: \.name) { item in
-                            let color = Color(hex: item.hex) ?? .orange
                             Circle()
-                                .fill(color)
+                                .fill(Theme.dynamic(light: item.light, dark: item.dark))
                                 .frame(width: 20, height: 20)
                                 .overlay {
                                     if accentName == item.name {

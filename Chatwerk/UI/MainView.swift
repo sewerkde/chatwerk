@@ -71,6 +71,12 @@ struct MainView: View {
                 }
                 .help("Statistics & cleanup")
             }
+            ToolbarItem {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .help("Settings (⌘,)")
+            }
         }
         .sheet(isPresented: $showStats) {
             StatsView()
@@ -253,8 +259,8 @@ struct SessionListView: View {
     /// faint green = Claude is still working. Selection highlight stays intact.
     private func rowBackground(for session: SessionInfo) -> Color? {
         guard session.id != state.selectedSessionId else { return nil }
-        if session.isWaitingForYou { return Color.orange.opacity(0.12) }
-        if session.isWorking { return Color.green.opacity(0.07) }
+        if session.isWaitingForYou { return Theme.waitingRowTint }
+        if session.isWorking { return Theme.workingRowTint }
         return nil
     }
 

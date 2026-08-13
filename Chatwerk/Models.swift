@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 /// One Claude Code session (a <uuid>.jsonl transcript under ~/.claude/projects/<encoded-cwd>/).
 struct SessionInfo: Identifiable, Hashable {
@@ -124,19 +125,36 @@ func shellQuote(_ s: String) -> String {
 }
 
 /// User-selectable appearance + accent themes.
+/// Every accent has a light and a brighter dark variant — low-opacity warm
+/// colors go muddy brown on dark backgrounds otherwise.
 enum Theme {
-    static let accents: [(name: String, hex: String)] = [
-        ("Sewerk Orange", "#FF6A00"),
-        ("Purple", "#7B61FF"),
-        ("Blue", "#339AF0"),
-        ("Green", "#40C057"),
-        ("Pink", "#F06595"),
-        ("Teal", "#20C997"),
+    static let accents: [(name: String, light: String, dark: String)] = [
+        ("Sewerk Orange", "#FF6A00", "#FF9142"),
+        ("Purple", "#7B61FF", "#9D8AFF"),
+        ("Violet", "#9B5CF6", "#B685FF"),
+        ("Blue", "#339AF0", "#66B8FF"),
+        ("Green", "#2F9E44", "#69DB7C"),
+        ("Lime", "#82C91E", "#A9E34B"),
+        ("Pink", "#F06595", "#FF8CB3"),
+        ("Teal", "#12B886", "#4FDBB5"),
     ]
 
-    static func accent(_ name: String) -> Color {
-        Color(hex: accents.first { $0.name == name }?.hex ?? "#FF6A00") ?? .orange
+    /// A color that resolves per-appearance (brighter variant in dark mode).
+    static func dynamic(light: String, dark: String) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(Color(hex: isDark ? dark : light) ?? .orange)
+        })
     }
+
+    static func accent(_ name: String) -> Color {
+        let entry = accents.first { $0.name == name } ?? accents[0]
+        return dynamic(light: entry.light, dark: entry.dark)
+    }
+
+    /// Session-state row tints (semantic, independent of the chosen accent).
+    static var waitingRowTint: Color { dynamic(light: "#FF6A00", dark: "#FFB340").opacity(0.16) }
+    static var workingRowTint: Color { dynamic(light: "#2F9E44", dark: "#69DB7C").opacity(0.10) }
 
     static func scheme(_ raw: String) -> ColorScheme? {
         switch raw {
