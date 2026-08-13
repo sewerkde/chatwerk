@@ -6,7 +6,7 @@ Thanks for your interest! Chatwerk is a small, focused codebase — you can read
 
 ```bash
 brew install xcodegen
-git clone https://github.com/serkanyildizdev/chatwerk.git
+git clone https://github.com/sewerkde/chatwerk.git
 cd chatwerk
 xcodegen generate        # produces Chatwerk.xcodeproj from project.yml
 open Chatwerk.xcodeproj  # …or: make app
