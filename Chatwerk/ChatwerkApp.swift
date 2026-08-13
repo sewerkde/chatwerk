@@ -27,6 +27,8 @@ struct ChatwerkApp: App {
 private struct MenuBarContent: View {
     @EnvironmentObject var state: AppState
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("notifyWhenReady") private var notifyWhenReady = true
+    @AppStorage("openInApp") private var openInApp = false
 
     var body: some View {
         Text("Recent sessions")
@@ -37,6 +39,9 @@ private struct MenuBarContent: View {
                 Text(menuTitle(session))
             }
         }
+        Divider()
+        Toggle("Alert when Claude is ready", isOn: $notifyWhenReady)
+        Toggle("Continue sessions inside Chatwerk", isOn: $openInApp)
         Divider()
         Button("Open Chatwerk") {
             openWindow(id: "main")

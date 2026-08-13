@@ -5,7 +5,7 @@ struct SettingsView: View {
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") private var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
-    @AppStorage("openInApp") private var openInAppDefault: Bool = true
+    @AppStorage("openInApp") private var openInAppDefault: Bool = false
     @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
     @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
     @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true

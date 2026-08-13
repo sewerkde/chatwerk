@@ -7,6 +7,8 @@ struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("didOnboard") private var didOnboard = false
+    @AppStorage("openInApp") private var openInApp = false
+    @AppStorage("notifyWhenReady") private var notifyWhenReady = true
 
     private let installed = TerminalKind.installed
 
@@ -58,20 +60,28 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("You can change this anytime in Settings (⌘,).")
+                Divider().padding(.vertical, 2)
+
+                Text("How should sessions continue?")
+                    .font(.headline)
+                choiceRow(selected: !openInApp,
+                          title: "In my terminal app",
+                          subtitle: "Recommended — no extra macOS permission prompts.") {
+                    openInApp = false
+                }
+                choiceRow(selected: openInApp,
+                          title: "Inside Chatwerk",
+                          subtitle: "Embedded terminal window. macOS will ask once per folder (Desktop, Documents, …) because Claude runs inside Chatwerk.") {
+                    openInApp = true
+                }
+
+                Divider().padding(.vertical, 2)
+
+                Toggle("Play a sound when Claude finishes responding", isOn: $notifyWhenReady)
+
+                Text("You can change all of this anytime in Settings (⌘,) or from the menu bar icon.")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
-
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(.secondary)
-                        .imageScale(.small)
-                    Text("Heads-up: the first time you continue a session *inside* Chatwerk, macOS may ask for access to folders like Desktop or Documents. That's Claude Code reaching your project files as a child process of Chatwerk — the same permissions your terminal already has. Each one is asked only once. To skip them all, grant Chatwerk Full Disk Access in System Settings → Privacy & Security.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(8)
-                .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
             }
             .frame(maxWidth: 380)
 
@@ -95,5 +105,29 @@ struct OnboardingView: View {
                 terminalKindRaw = first.rawValue
             }
         }
+    }
+
+    private func choiceRow(selected: Bool, title: String, subtitle: String,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(alignment: .top) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(selected ? Color.accentColor : .secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(
+                selected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

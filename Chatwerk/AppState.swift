@@ -28,7 +28,7 @@ final class AppState: ObservableObject {
     @AppStorage("showMenuBarExtra") var showMenuBarExtra: Bool = true
     /// true → double-click/Enter continues the session inside Chatwerk;
     /// false → hands off to the external terminal app.
-    @AppStorage("openInApp") var openInAppDefault: Bool = true
+    @AppStorage("openInApp") var openInAppDefault: Bool = false
     /// Alert when a running session finishes responding (busy → idle).
     @AppStorage("notifyWhenReady") var notifyWhenReady: Bool = true
     @AppStorage("notifyWithBanner") var notifyWithBanner: Bool = true
