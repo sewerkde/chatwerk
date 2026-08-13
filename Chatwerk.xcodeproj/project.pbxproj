@@ -1,0 +1,406 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		023CDF354A9B666F48C43C65 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3040B046758DA8E2B2E82099 /* AppState.swift */; };
+		1727E472D1D6ADD8F44216D0 /* TerminalLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7444E46249E126518B587D9 /* TerminalLauncher.swift */; };
+		18A79781F3E51714E34C8219 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD39F6941C15DF759C64B5C8 /* Models.swift */; };
+		1A7ED6AB3CC7B499C74A5774 /* TranscriptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4A73F437952F781538152E /* TranscriptLoader.swift */; };
+		257426D2B711C9EA6C20D7CE /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7657A00124F924E8ADF4EDA6 /* DetailView.swift */; };
+		2C608252DE2A36A3C6851185 /* ClaudePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CBD15C6773BA3D2404F043 /* ClaudePaths.swift */; };
+		2EF15C25EB976CA47EB39F5E /* Indexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F339B078D5522A165D1894B /* Indexer.swift */; };
+		35A9FE6EA6EAA6E80184A918 /* SessionScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E5F2BD67DFDF96017137C7 /* SessionScanner.swift */; };
+		42258F8BD05601F9227F01DC /* JSONL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F3C779F4CD666D54AB86FE /* JSONL.swift */; };
+		66F8A5EB4163FBC53B5D85A3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC99E358A4ABA2134212326A /* SettingsView.swift */; };
+		807AA1C39021D906258C2590 /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABDC980E088DE2D4C63B45F5 /* Cleaner.swift */; };
+		829C582846F1E928F144C89B /* ChatwerkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4620750A0F7337D956328D /* ChatwerkApp.swift */; };
+		8859ED27D7C7FC77D65063CB /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F3BCE37DE5CE9AFD45D066 /* StatsView.swift */; };
+		A8F1B9C9617E6C2FF4ECBE03 /* QuickSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A57CE3836B558F414A5BA0C /* QuickSearchView.swift */; };
+		B88865185176A5B9DACB8EAF /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66095E58757BBBEA3FDF7D36 /* OnboardingView.swift */; };
+		BBE8B60C0754A7C10687D3A4 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = D749793BDD65600D7942E3E5 /* Database.swift */; };
+		DDDB03F1747E551B00B2EA55 /* LiveSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1318BD54284B4AADB9493852 /* LiveSessions.swift */; };
+		E0851B84C783288B8A7D623F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 448DA85671DC34EA2BD76ED5 /* Assets.xcassets */; };
+		F3B3E238F6EB2E42FE160BFD /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174569ACDD5C99314F721A07 /* MainView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0F339B078D5522A165D1894B /* Indexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Indexer.swift; sourceTree = "<group>"; };
+		1318BD54284B4AADB9493852 /* LiveSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessions.swift; sourceTree = "<group>"; };
+		174569ACDD5C99314F721A07 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		2A57CE3836B558F414A5BA0C /* QuickSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSearchView.swift; sourceTree = "<group>"; };
+		3040B046758DA8E2B2E82099 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		36E5F2BD67DFDF96017137C7 /* SessionScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionScanner.swift; sourceTree = "<group>"; };
+		42F3BCE37DE5CE9AFD45D066 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		448DA85671DC34EA2BD76ED5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		45CBD15C6773BA3D2404F043 /* ClaudePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePaths.swift; sourceTree = "<group>"; };
+		66095E58757BBBEA3FDF7D36 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		7657A00124F924E8ADF4EDA6 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
+		7B4A73F437952F781538152E /* TranscriptLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptLoader.swift; sourceTree = "<group>"; };
+		82F3C779F4CD666D54AB86FE /* JSONL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONL.swift; sourceTree = "<group>"; };
+		A7444E46249E126518B587D9 /* TerminalLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalLauncher.swift; sourceTree = "<group>"; };
+		ABDC980E088DE2D4C63B45F5 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
+		AD39F6941C15DF759C64B5C8 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		D749793BDD65600D7942E3E5 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
+		DC99E358A4ABA2134212326A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DE4620750A0F7337D956328D /* ChatwerkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatwerkApp.swift; sourceTree = "<group>"; };
+		F7980E61D6A723A5C025ED0A /* Chatwerk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatwerk.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1040C2987E142E54B6FA2761 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F7980E61D6A723A5C025ED0A /* Chatwerk.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1F930B09B2176FBCF194B05B = {
+			isa = PBXGroup;
+			children = (
+				C3FDBCFDED8C3DF91F66BE19 /* Chatwerk */,
+				1040C2987E142E54B6FA2761 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6F19980908A5C1C9094943AD /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				45CBD15C6773BA3D2404F043 /* ClaudePaths.swift */,
+				ABDC980E088DE2D4C63B45F5 /* Cleaner.swift */,
+				D749793BDD65600D7942E3E5 /* Database.swift */,
+				0F339B078D5522A165D1894B /* Indexer.swift */,
+				82F3C779F4CD666D54AB86FE /* JSONL.swift */,
+				1318BD54284B4AADB9493852 /* LiveSessions.swift */,
+				36E5F2BD67DFDF96017137C7 /* SessionScanner.swift */,
+				A7444E46249E126518B587D9 /* TerminalLauncher.swift */,
+				7B4A73F437952F781538152E /* TranscriptLoader.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		BFBA62B1287A89767057146C /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				7657A00124F924E8ADF4EDA6 /* DetailView.swift */,
+				174569ACDD5C99314F721A07 /* MainView.swift */,
+				66095E58757BBBEA3FDF7D36 /* OnboardingView.swift */,
+				2A57CE3836B558F414A5BA0C /* QuickSearchView.swift */,
+				DC99E358A4ABA2134212326A /* SettingsView.swift */,
+				42F3BCE37DE5CE9AFD45D066 /* StatsView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		C3FDBCFDED8C3DF91F66BE19 /* Chatwerk */ = {
+			isa = PBXGroup;
+			children = (
+				3040B046758DA8E2B2E82099 /* AppState.swift */,
+				448DA85671DC34EA2BD76ED5 /* Assets.xcassets */,
+				DE4620750A0F7337D956328D /* ChatwerkApp.swift */,
+				AD39F6941C15DF759C64B5C8 /* Models.swift */,
+				6F19980908A5C1C9094943AD /* Core */,
+				BFBA62B1287A89767057146C /* UI */,
+			);
+			path = Chatwerk;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		177F36DEC42E2302579AFD19 /* Chatwerk */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB2DB8ABD0C4E1F092F2FCEC /* Build configuration list for PBXNativeTarget "Chatwerk" */;
+			buildPhases = (
+				1B88EFBB219251AD4A441B27 /* Sources */,
+				AF99785C9858AB8376919EBD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Chatwerk;
+			packageProductDependencies = (
+			);
+			productName = Chatwerk;
+			productReference = F7980E61D6A723A5C025ED0A /* Chatwerk.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D057EBB4F2069A44B24AEB49 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					177F36DEC42E2302579AFD19 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 4AF176880F993990E5D54ECD /* Build configuration list for PBXProject "Chatwerk" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 1F930B09B2176FBCF194B05B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1040C2987E142E54B6FA2761 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				177F36DEC42E2302579AFD19 /* Chatwerk */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AF99785C9858AB8376919EBD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E0851B84C783288B8A7D623F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1B88EFBB219251AD4A441B27 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				023CDF354A9B666F48C43C65 /* AppState.swift in Sources */,
+				829C582846F1E928F144C89B /* ChatwerkApp.swift in Sources */,
+				2C608252DE2A36A3C6851185 /* ClaudePaths.swift in Sources */,
+				807AA1C39021D906258C2590 /* Cleaner.swift in Sources */,
+				BBE8B60C0754A7C10687D3A4 /* Database.swift in Sources */,
+				257426D2B711C9EA6C20D7CE /* DetailView.swift in Sources */,
+				2EF15C25EB976CA47EB39F5E /* Indexer.swift in Sources */,
+				42258F8BD05601F9227F01DC /* JSONL.swift in Sources */,
+				DDDB03F1747E551B00B2EA55 /* LiveSessions.swift in Sources */,
+				F3B3E238F6EB2E42FE160BFD /* MainView.swift in Sources */,
+				18A79781F3E51714E34C8219 /* Models.swift in Sources */,
+				B88865185176A5B9DACB8EAF /* OnboardingView.swift in Sources */,
+				A8F1B9C9617E6C2FF4ECBE03 /* QuickSearchView.swift in Sources */,
+				35A9FE6EA6EAA6E80184A918 /* SessionScanner.swift in Sources */,
+				66F8A5EB4163FBC53B5D85A3 /* SettingsView.swift in Sources */,
+				8859ED27D7C7FC77D65063CB /* StatsView.swift in Sources */,
+				1727E472D1D6ADD8F44216D0 /* TerminalLauncher.swift in Sources */,
+				1A7ED6AB3CC7B499C74A5774 /* TranscriptLoader.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1A6CF019F412ACA08C41FC1B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chatwerk opens your Claude Code sessions in your terminal app.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Sewerk";
+				INFOPLIST_KEY_NSMainStoryboardFile = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = de.sewerk.chatwerk;
+				PRODUCT_NAME = Chatwerk;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		300E2EFE7DA2AC4D34845C0B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		937E69D1E768B8A987216067 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D005BA74686E237674DFDB68 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chatwerk opens your Claude Code sessions in your terminal app.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Sewerk";
+				INFOPLIST_KEY_NSMainStoryboardFile = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = de.sewerk.chatwerk;
+				PRODUCT_NAME = Chatwerk;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4AF176880F993990E5D54ECD /* Build configuration list for PBXProject "Chatwerk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				300E2EFE7DA2AC4D34845C0B /* Debug */,
+				937E69D1E768B8A987216067 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EB2DB8ABD0C4E1F092F2FCEC /* Build configuration list for PBXNativeTarget "Chatwerk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D005BA74686E237674DFDB68 /* Debug */,
+				1A6CF019F412ACA08C41FC1B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D057EBB4F2069A44B24AEB49 /* Project object */;
+}

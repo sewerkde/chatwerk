@@ -1,0 +1,30 @@
+name: Chatwerk
+options:
+  bundleIdPrefix: de.sewerk
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+targets:
+  Chatwerk:
+    type: application
+    platform: macOS
+    sources:
+      - Chatwerk
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.sewerk.chatwerk
+        PRODUCT_NAME: Chatwerk
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 5.0
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_APP_SANDBOX: NO
+        GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Sewerk"
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: "Chatwerk opens your Claude Code sessions in your terminal app."
+        INFOPLIST_KEY_NSMainStoryboardFile: ""
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
