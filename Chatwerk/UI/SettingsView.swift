@@ -8,6 +8,8 @@ struct SettingsView: View {
     @AppStorage("openInApp") private var openInAppDefault: Bool = true
     @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
     @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
+    @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true
+    @AppStorage("readySound") private var readySound: String = "Glass"
 
     var body: some View {
         Form {
@@ -31,12 +33,33 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Alert when Claude finishes responding", isOn: $notifyWhenReady)
-                Toggle("Also show a notification banner", isOn: $notifyWithBanner)
+                Toggle("Play a sound", isOn: $notifyWithSound)
+                    .disabled(!notifyWhenReady)
+                HStack {
+                    Picker("Sound", selection: $readySound) {
+                        ForEach(Notifier.availableSounds, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(!notifyWhenReady || !notifyWithSound)
+                    .onChange(of: readySound) { _, name in
+                        Notifier.preview(sound: name)
+                    }
+                    Button {
+                        Notifier.preview(sound: readySound)
+                    } label: {
+                        Image(systemName: "speaker.wave.2")
+                    }
+                    .disabled(!notifyWhenReady || !notifyWithSound)
+                    .help("Preview sound")
+                }
+                Toggle("Show a notification banner", isOn: $notifyWithBanner)
                     .disabled(!notifyWhenReady)
                     .onChange(of: notifyWithBanner) { _, on in
                         if on { Notifier.requestAuthorizationIfNeeded() }
                     }
-                Text("Plays a sound (and optionally a banner) when a running session becomes idle again — so you notice Claude is waiting for you.")
+                Text("Fires when a running session becomes idle again — so you notice Claude is waiting for you.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

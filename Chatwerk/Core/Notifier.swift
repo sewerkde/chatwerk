@@ -10,9 +10,19 @@ enum Notifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    static func claudeIsReady(sessionTitle: String, playSound: Bool, showBanner: Bool) {
-        if playSound {
-            NSSound(named: "Glass")?.play()
+    /// macOS system alert sounds available for the ready-chime.
+    static let availableSounds = [
+        "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
+        "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink",
+    ]
+
+    static func preview(sound: String) {
+        NSSound(named: sound)?.play()
+    }
+
+    static func claudeIsReady(sessionTitle: String, soundName: String?, showBanner: Bool) {
+        if let soundName {
+            NSSound(named: soundName)?.play()
         }
         guard showBanner else { return }
         let content = UNMutableNotificationContent()

@@ -12,11 +12,6 @@ struct ChatwerkApp: App {
                 .frame(minWidth: 980, minHeight: 620)
         }
 
-        WindowGroup("Session", id: "terminal", for: String.self) { $sessionId in
-            SessionTerminalWindow(sessionId: sessionId)
-                .environmentObject(state)
-        }
-
         Settings {
             SettingsView()
                 .environmentObject(state)
@@ -37,7 +32,7 @@ private struct MenuBarContent: View {
         Text("Recent sessions")
         ForEach(state.sessions.prefix(10)) { session in
             Button {
-                state.open(session)
+                state.continueDefault(session)
             } label: {
                 Text(menuTitle(session))
             }

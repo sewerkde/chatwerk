@@ -5,7 +5,6 @@ import SwiftUI
 struct QuickSearchView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openWindow) private var openWindow
 
     @State private var query = ""
     @State private var results: [SessionInfo] = []
@@ -136,11 +135,7 @@ struct QuickSearchView: View {
         guard results.indices.contains(selectedIndex) else { return }
         let session = results[selectedIndex]
         dismiss()
-        if state.openInAppDefault {
-            openWindow(id: "terminal", value: session.id)
-        } else {
-            state.open(session)
-        }
+        state.continueDefault(session)
     }
 
     private func revealSelected() {

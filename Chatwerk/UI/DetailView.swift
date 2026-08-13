@@ -3,7 +3,6 @@ import AppKit
 
 struct DetailView: View {
     @EnvironmentObject var state: AppState
-    @Environment(\.openWindow) private var openWindow
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
 
@@ -55,18 +54,18 @@ struct DetailView: View {
         .toolbar {
             ToolbarItemGroup {
                 Button {
-                    openWindow(id: "terminal", value: current.id)
+                    state.continueInApp(current)
                 } label: {
-                    Label("Continue Here", systemImage: "terminal")
+                    Label("Continue Here", systemImage: "play.fill")
                 }
                 .help("Continue this session inside Chatwerk")
 
                 Button {
                     state.open(current)
                 } label: {
-                    Label("Resume in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                    Label("Open in \(state.terminalKind.rawValue)", systemImage: "arrow.up.forward.app")
                 }
-                .help("Open this session in your terminal")
+                .help("Open this session in your external terminal app")
 
                 Button {
                     state.copyCommand(current)
@@ -255,7 +254,7 @@ struct DetailView: View {
                 }
                 HStack(spacing: 8) {
                     Button {
-                        openWindow(id: "terminal", value: current.id)
+                        state.continueInApp(current)
                     } label: {
                         Label("Continue here", systemImage: "play.fill")
                     }
