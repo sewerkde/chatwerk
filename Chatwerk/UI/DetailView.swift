@@ -12,6 +12,8 @@ struct DetailView: View {
     @State private var note: String = ""
     @State private var transcript: TranscriptPage?
     @State private var loadingTranscript = false
+    @State private var showNewTag = false
+    @AppStorage("showInfoPanel") private var showInfoPanel = false
 
     private var current: SessionInfo {
         state.sessions.first { $0.id == session.id } ?? session
@@ -25,8 +27,6 @@ struct DetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         whereYouLeftOff
-                        detailsCard
-                        organizeCard
                         transcriptSection(proxy: proxy)
                         Color.clear.frame(height: 1).id("transcript-end")
                     }
@@ -36,6 +36,10 @@ struct DetailView: View {
             }
         }
         .background(Color(nsColor: .underPageBackgroundColor).opacity(0.5))
+        .inspector(isPresented: $showInfoPanel) {
+            inspectorContent
+                .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
+        }
         .onChange(of: session.id, initial: true) { _, _ in
             customTitle = session.customTitle ?? ""
             note = session.note ?? ""
@@ -56,6 +60,10 @@ struct DetailView: View {
             if !Task.isCancelled {
                 transcript = page
             }
+        }
+        .sheet(isPresented: $showNewTag) {
+            NewTagSheet()
+                .environmentObject(state)
         }
         .toolbar {
             ToolbarItemGroup {
@@ -92,6 +100,13 @@ struct DetailView: View {
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
+
+                Button {
+                    showInfoPanel.toggle()
+                } label: {
+                    Label("Info", systemImage: "sidebar.trailing")
+                }
+                .help("Tags, notes & technical details")
             }
         }
     }
@@ -131,12 +146,13 @@ struct DetailView: View {
                 if current.messageCount > 0 {
                     chip(icon: "bubble.left.and.bubble.right", text: "\(current.messageCount) msgs")
                 }
-                if !customTitle.isEmpty, let auto = current.title {
-                    Text(auto)
+                ForEach(current.tags) { tag in
+                    Text(tag.name)
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .padding(.leading, 4)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(tag.color.opacity(0.2), in: Capsule())
+                        .foregroundStyle(tag.color)
                 }
                 Spacer()
             }
@@ -170,22 +186,7 @@ struct DetailView: View {
         .help(help ?? text)
     }
 
-    // MARK: - Cards
-
-    private func card<Content: View>(_ title: String, icon: String,
-                                     @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content()
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.15)))
-        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
-    }
+    // MARK: - Where you left off
 
     /// The core "I forgot where I was" feature: last question + Claude's last
     /// answer, with a resume button — visible before anything else.
@@ -245,66 +246,18 @@ struct DetailView: View {
         }
     }
 
-    private var detailsCard: some View {
-        card("Details", icon: "info.circle") {
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                GridRow {
-                    Text("Project").foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                    Text(current.cwd ?? current.projectDir)
-                        .textSelection(.enabled)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                GridRow {
-                    Text("Session").foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        Text(current.uuid)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                        Button {
-                            state.copyCommand(current)
-                        } label: {
-                            Image(systemName: "doc.on.doc").imageScale(.small)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Copy resume command")
-                    }
-                }
-                if let created = current.createdAt {
-                    GridRow {
-                        Text("Started").foregroundStyle(.secondary)
-                        Text(created.formatted(date: .abbreviated, time: .shortened))
-                    }
-                }
-                GridRow {
-                    Text("Last activity").foregroundStyle(.secondary)
-                    Text(current.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                }
-                if let model = current.model {
-                    GridRow {
-                        Text("Model").foregroundStyle(.secondary)
-                        Text(model).font(.system(.caption, design: .monospaced))
-                    }
-                }
-                if let branch = current.gitBranch, !branch.isEmpty {
-                    GridRow {
-                        Text("Branch").foregroundStyle(.secondary)
-                        Text(branch).font(.system(.caption, design: .monospaced))
-                    }
-                }
-            }
-            .font(.callout)
-        }
-    }
+    // MARK: - Inspector (tags, notes, technical details)
 
-    private var organizeCard: some View {
-        card("Tags & Notes", icon: "tag") {
-            VStack(alignment: .leading, spacing: 10) {
-                if state.tags.isEmpty {
-                    Text("No tags yet — create one from the sidebar to group related chats.")
-                        .font(.callout)
+    private var inspectorContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Tags", systemImage: "tag")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                } else {
+                    Text("Tag this chat to find it again from the sidebar.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                     FlowLayoutLite(spacing: 6) {
                         ForEach(state.tags) { tag in
                             let isOn = current.tags.contains { $0.id == tag.id }
@@ -327,25 +280,100 @@ struct DetailView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        Button {
+                            showNewTag = true
+                        } label: {
+                            Label("New", systemImage: "plus")
+                                .font(.caption)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
+                                .background(Color.secondary.opacity(0.07), in: Capsule())
+                                .overlay(Capsule().stroke(Color.secondary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [3])))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                TextEditor(text: $note)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .padding(6)
-                    .frame(minHeight: 54, maxHeight: 110)
-                    .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
-                    .overlay(alignment: .topLeading) {
-                        if note.isEmpty {
-                            Text("Add a note so future-you remembers what this chat was about…")
-                                .font(.body)
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 11)
-                                .padding(.vertical, 8)
-                                .allowsHitTesting(false)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Note", systemImage: "note.text")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("A reminder to future-you about what this chat was. Search looks in here too.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    TextEditor(text: $note)
+                        .font(.body)
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
+                        .frame(minHeight: 80, maxHeight: 160)
+                        .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
+                        .overlay(alignment: .topLeading) {
+                            if note.isEmpty {
+                                Text("e.g. “Auth refactor — resume after the DB migration lands”")
+                                    .font(.body)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                            }
                         }
+                        .onChange(of: note) { _, _ in saveMeta() }
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Technical details", systemImage: "info.circle")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    detailsGrid
+                }
+
+                Spacer()
+            }
+            .padding(14)
+        }
+    }
+
+    private var detailsGrid: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            infoRow("Project", current.cwd ?? current.projectDir)
+            infoRow("Session", current.uuid, mono: true, copyable: true)
+            if let created = current.createdAt {
+                infoRow("Started", created.formatted(date: .abbreviated, time: .shortened))
+            }
+            infoRow("Last activity", current.modifiedAt.formatted(date: .abbreviated, time: .shortened))
+            if let model = current.model {
+                infoRow("Model", model, mono: true)
+            }
+            if let branch = current.gitBranch, !branch.isEmpty {
+                infoRow("Branch", branch, mono: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func infoRow(_ label: String, _ value: String, mono: Bool = false, copyable: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            HStack(spacing: 6) {
+                Text(value)
+                    .font(mono ? .system(.caption, design: .monospaced) : .caption)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                if copyable {
+                    Button {
+                        state.copyCommand(current)
+                    } label: {
+                        Image(systemName: "doc.on.doc").imageScale(.small)
                     }
-                    .onChange(of: note) { _, _ in saveMeta() }
+                    .buttonStyle(.plain)
+                    .help("Copy resume command")
+                }
             }
         }
     }
@@ -374,7 +402,6 @@ struct DetailView: View {
                 .help("Jump to the end of the conversation")
             }
         }
-        .padding(.top, 6)
 
         if loadingTranscript {
             HStack(spacing: 8) {
