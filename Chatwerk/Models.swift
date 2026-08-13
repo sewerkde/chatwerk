@@ -40,6 +40,13 @@ struct SessionInfo: Identifiable, Hashable {
         return (cwd as NSString).lastPathComponent.isEmpty ? cwd : (cwd as NSString).lastPathComponent
     }
 
+    /// Not yet organized by the user in any way — candidates for getting lost.
+    var isUnsorted: Bool {
+        tags.isEmpty && !favorite
+            && (note ?? "").isEmpty
+            && (customTitle ?? "").isEmpty
+    }
+
     var resumeCommand: String {
         let cd: String
         if let cwd, !cwd.isEmpty {
@@ -72,6 +79,7 @@ enum SidebarFilter: Hashable {
     case all
     case favorites
     case live
+    case unsorted          // sessions with no tag/note/favorite — the "forgotten" pool
     case project(String)   // ProjectGroup.key
     case tag(Int64)        // tag id
 }

@@ -53,6 +53,7 @@ final class AppState: ObservableObject {
             case .all: break
             case .favorites: base = base.filter { $0.favorite }
             case .live: base = base.filter { $0.isLive }
+            case .unsorted: base = base.filter { $0.isUnsorted }
             case .project(let key): base = base.filter { ($0.cwd ?? $0.projectDir) == key }
             case .tag(let id): base = base.filter { s in s.tags.contains { $0.id == id } }
             }

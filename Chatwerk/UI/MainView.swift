@@ -134,6 +134,9 @@ struct SidebarView: View {
                 Label("Running now", systemImage: "dot.radiowaves.left.and.right")
                     .badge(state.sessions.filter(\.isLive).count)
                     .tag(SidebarFilter.live)
+                Label("Unsorted", systemImage: "questionmark.folder")
+                    .badge(state.sessions.filter(\.isUnsorted).count)
+                    .tag(SidebarFilter.unsorted)
             }
             Section("Projects") {
                 ForEach(state.projectGroups) { group in
@@ -192,9 +195,23 @@ struct SessionListView: View {
     @Binding var pendingDelete: SessionInfo?
 
     var body: some View {
-        List(state.visibleSessions, selection: $state.selectedSessionId) { session in
-            SessionRowView(session: session, pendingDelete: $pendingDelete)
-                .tag(session.id)
+        List(selection: $state.selectedSessionId) {
+            if state.searchResults != nil {
+                // Search results stay flat: ordered by relevance, not date.
+                ForEach(state.visibleSessions) { session in
+                    SessionRowView(session: session, pendingDelete: $pendingDelete)
+                        .tag(session.id)
+                }
+            } else {
+                ForEach(groupedSessions, id: \.label) { group in
+                    Section(group.label) {
+                        ForEach(group.items) { session in
+                            SessionRowView(session: session, pendingDelete: $pendingDelete)
+                                .tag(session.id)
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.inset)
         .overlay {
@@ -209,12 +226,33 @@ struct SessionListView: View {
         .navigationTitle(navigationTitle)
     }
 
+    /// Time buckets so scanning by memory ("it was last week…") works.
+    private var groupedSessions: [(label: String, items: [SessionInfo])] {
+        let cal = Calendar.current
+        let now = Date()
+        var buckets: [(label: String, items: [SessionInfo])] = [
+            ("Today", []), ("Yesterday", []), ("This Week", []), ("This Month", []), ("Older", []),
+        ]
+        for s in state.visibleSessions {
+            let d = s.modifiedAt
+            let idx: Int
+            if cal.isDateInToday(d) { idx = 0 }
+            else if cal.isDateInYesterday(d) { idx = 1 }
+            else if cal.isDate(d, equalTo: now, toGranularity: .weekOfYear) { idx = 2 }
+            else if cal.isDate(d, equalTo: now, toGranularity: .month) { idx = 3 }
+            else { idx = 4 }
+            buckets[idx].items.append(s)
+        }
+        return buckets.filter { !$0.items.isEmpty }
+    }
+
     private var navigationTitle: String {
         if state.searchResults != nil { return "Search results" }
         switch state.filter {
         case .all: return "All Sessions"
         case .favorites: return "Favorites"
         case .live: return "Running now"
+        case .unsorted: return "Unsorted"
         case .project(let key): return state.projectGroups.first { $0.key == key }?.name ?? "Project"
         case .tag(let id): return state.tags.first { $0.id == id }?.name ?? "Tag"
         }
@@ -278,6 +316,17 @@ struct SessionRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+            } else if let last = session.lastPrompt, !last.isEmpty {
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "arrow.turn.down.right")
+                        .imageScale(.small)
+                        .foregroundStyle(.tertiary)
+                    Text(last)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .help("Last thing you asked in this session")
             }
         }
         .padding(.vertical, 3)

@@ -26,16 +26,20 @@ struct DetailView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    metadata
-                    tagsEditor
-                    noteEditor
-                    Divider()
-                    transcriptSection
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        whereYouLeftOff
+                        metadata
+                        tagsEditor
+                        noteEditor
+                        Divider()
+                        transcriptSection(proxy: proxy)
+                        Color.clear.frame(height: 1).id("transcript-end")
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .task(id: session.id) {
@@ -213,8 +217,46 @@ struct DetailView: View {
         }
     }
 
+    /// The core "I forgot where I was" feature: last question + Claude's last
+    /// answer, with a resume button — visible before anything else.
     @ViewBuilder
-    private var transcriptSection: some View {
+    private var whereYouLeftOff: some View {
+        if let t = transcript,
+           let lastAnswer = t.entries.last(where: { $0.kind == .assistant }) {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Where you left off", systemImage: "clock.arrow.circlepath")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                if let lastPrompt = current.lastPrompt, !lastPrompt.isEmpty {
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("You:").font(.callout.bold()).foregroundStyle(Color.accentColor)
+                        Text(lastPrompt).font(.callout).lineLimit(3).textSelection(.enabled)
+                    }
+                }
+                HStack(alignment: .top, spacing: 6) {
+                    Text("Claude:").font(.callout.bold()).foregroundStyle(.secondary)
+                    Text(String(lastAnswer.text.prefix(700)))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(6)
+                        .textSelection(.enabled)
+                }
+                Button {
+                    state.open(current)
+                } label: {
+                    Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                }
+                .controlSize(.small)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor.opacity(0.2)))
+        }
+    }
+
+    @ViewBuilder
+    private func transcriptSection(proxy: ScrollViewProxy) -> some View {
         HStack {
             Text("Transcript").font(.headline)
             Spacer()
@@ -224,6 +266,13 @@ struct DetailView: View {
                      : "\(t.totalEntries) entries")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button {
+                    withAnimation { proxy.scrollTo("transcript-end", anchor: .bottom) }
+                } label: {
+                    Label("Latest", systemImage: "arrow.down.to.line")
+                }
+                .controlSize(.small)
+                .help("Jump to the end of the conversation")
             }
         }
         if loadingTranscript {
