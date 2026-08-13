@@ -198,29 +198,33 @@ struct DetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(accent)
                 if let lastPrompt = current.lastPrompt, !lastPrompt.isEmpty {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text("You")
+                    HStack(alignment: .top, spacing: 8) {
+                        RoleAvatar(isUser: true, accent: accent, size: 18)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("You")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(accent)
+                            Text(TranscriptLoader.plainPreview(lastPrompt, maxLength: 240))
+                                .font(.callout.weight(.medium))
+                                .lineLimit(2)
+                                .lineSpacing(2)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    RoleAvatar(isUser: false, accent: accent, size: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Claude")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(accent)
-                            .frame(width: 48, alignment: .trailing)
-                        Text(TranscriptLoader.plainPreview(lastPrompt, maxLength: 240))
-                            .font(.callout.weight(.medium))
-                            .lineLimit(2)
+                            .foregroundStyle(.primary)
+                        Text(TranscriptLoader.plainPreview(lastAnswer.text))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
                             .lineSpacing(2)
                             .textSelection(.enabled)
                     }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("Claude")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 48, alignment: .trailing)
-                    Text(TranscriptLoader.plainPreview(lastAnswer.text))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(4)
-                        .lineSpacing(2)
-                        .textSelection(.enabled)
                 }
                 Button {
                     state.open(current)
@@ -229,7 +233,7 @@ struct DetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .padding(.leading, 58)
+                .padding(.leading, 26)
                 .padding(.top, 2)
             }
             .padding(14)
@@ -439,34 +443,33 @@ struct TranscriptEntryView: View {
         switch entry.kind {
         case .user, .assistant:
             let isUser = entry.kind == .user
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(isUser ? accent : Color.secondary)
-                        .frame(width: 6, height: 6)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    RoleAvatar(isUser: isUser, accent: accent, size: 20)
                     Text(entry.roleLabel)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(isUser ? accent : .secondary)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(isUser ? accent : .primary)
                     if let ts = entry.timestamp {
-                        Text(ts.formatted(date: .omitted, time: .shortened))
+                        Text(ts.formatted(date: .abbreviated, time: .shortened))
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 MessageBody(text: entry.text.count > 6000 ? String(entry.text.prefix(6000)) + " …" : entry.text)
                     .frame(maxWidth: 720, alignment: .leading)
+                    .padding(.leading, 27)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                isUser ? accent.opacity(0.06) : Color.clear,
+                isUser ? accent.opacity(0.13) : Color.secondary.opacity(0.09),
                 in: RoundedRectangle(cornerRadius: 10)
             )
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isUser ? accent.opacity(0.2) : Color.secondary.opacity(0.12))
+                    .stroke(isUser ? accent.opacity(0.35) : Color.secondary.opacity(0.2))
             )
         case .thinking, .toolUse, .toolResult:
             DisclosureGroup(isExpanded: $expanded) {
@@ -493,6 +496,24 @@ struct TranscriptEntryView: View {
         case .toolResult: return "arrow.turn.down.left"
         default: return "circle"
         }
+    }
+}
+
+/// Small round avatar: person for the user, sparkles for Claude.
+struct RoleAvatar: View {
+    let isUser: Bool
+    let accent: Color
+    var size: CGFloat = 20
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(isUser ? accent : Color(hex: "#D97757") ?? .orange)
+            Image(systemName: isUser ? "person.fill" : "sparkles")
+                .font(.system(size: size * 0.5, weight: .bold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
     }
 }
 
