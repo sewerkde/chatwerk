@@ -8,17 +8,10 @@ struct DetailView: View {
     @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
     private var accent: Color { Theme.accent(accentName) }
 
-    @State private var customTitle: String
-    @State private var note: String
+    @State private var customTitle: String = ""
+    @State private var note: String = ""
     @State private var transcript: TranscriptPage?
     @State private var loadingTranscript = false
-
-    init(session: SessionInfo, pendingDelete: Binding<SessionInfo?>) {
-        self.session = session
-        self._pendingDelete = pendingDelete
-        self._customTitle = State(initialValue: session.customTitle ?? "")
-        self._note = State(initialValue: session.note ?? "")
-    }
 
     private var current: SessionInfo {
         state.sessions.first { $0.id == session.id } ?? session
@@ -44,7 +37,14 @@ struct DetailView: View {
                 }
             }
         }
+        .onChange(of: session.id, initial: true) { _, _ in
+            // The view persists across selections (no .id teardown), so local
+            // editor state resets here instead of in init.
+            customTitle = session.customTitle ?? ""
+            note = session.note ?? ""
+        }
         .task(id: session.id) {
+            transcript = nil
             loadingTranscript = true
             defer { loadingTranscript = false }
             let path = session.path
@@ -308,6 +308,11 @@ struct DetailView: View {
     }
 
     private func saveMeta() {
+        let title = customTitle.isEmpty ? nil : customTitle
+        let noteValue = note.isEmpty ? nil : note
+        // Skip no-op writes — the per-selection state reset would otherwise
+        // publish a fake change on every click.
+        guard title != current.customTitle || noteValue != current.note else { return }
         state.updateMeta(current, customTitle: customTitle, note: note, favorite: current.favorite)
     }
 

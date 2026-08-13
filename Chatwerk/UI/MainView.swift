@@ -32,8 +32,9 @@ struct MainView: View {
                 .navigationSplitViewColumnWidth(min: 340, ideal: 400)
         } detail: {
             if let session = state.selectedSession {
+                // NOTE: no .id(session.id) here — forcing a full DetailView
+                // (and unified-toolbar) teardown per selection is visibly slow.
                 DetailView(session: session, pendingDelete: $pendingDelete)
-                    .id(session.id)
             } else {
                 ContentUnavailableView("Select a session",
                                        systemImage: "bubble.left.and.text.bubble.right",
@@ -243,6 +244,19 @@ struct SessionListView: View {
             }
         }
         .listStyle(.inset)
+        // Native List double-click (primaryAction) + selection-based context
+        // menu: row-level tap gestures delay single-click selection on macOS.
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first,
+               let session = state.sessions.first(where: { $0.id == id }) {
+                menuItems(for: session)
+            }
+        } primaryAction: { ids in
+            if let id = ids.first,
+               let session = state.sessions.first(where: { $0.id == id }) {
+                state.open(session)
+            }
+        }
         .overlay {
             if state.visibleSessions.isEmpty && !state.claudeDirMissing {
                 if state.searchResults != nil {
@@ -253,6 +267,33 @@ struct SessionListView: View {
             }
         }
         .navigationTitle(navigationTitle)
+    }
+
+    @ViewBuilder
+    private func menuItems(for session: SessionInfo) -> some View {
+        Button("Continue in \(state.terminalKind.rawValue)") { state.open(session) }
+        Button("Copy Resume Command") { state.copyCommand(session) }
+        Divider()
+        Button(session.favorite ? "Remove from Favorites" : "Add to Favorites") {
+            state.toggleFavorite(session)
+        }
+        if !state.tags.isEmpty {
+            Menu("Tags") {
+                ForEach(state.tags) { tag in
+                    let isOn = session.tags.contains { $0.id == tag.id }
+                    Button {
+                        state.setTag(session, tag: tag, on: !isOn)
+                    } label: {
+                        HStack {
+                            if isOn { Image(systemName: "checkmark") }
+                            Text(tag.name)
+                        }
+                    }
+                }
+            }
+        }
+        Divider()
+        Button("Delete…", role: .destructive) { pendingDelete = session }
     }
 
     /// Attention tint: orange = Claude answered and waits for you,
@@ -393,35 +434,6 @@ struct SessionRowView: View {
             }
         }
         .padding(.vertical, 3)
-        .contentShape(Rectangle())
-        // simultaneousGesture: a plain onTapGesture(count: 2) makes every single
-        // click wait for double-click disambiguation, which lags row selection.
-        .simultaneousGesture(TapGesture(count: 2).onEnded { state.open(session) })
-        .contextMenu {
-            Button("Continue in \(state.terminalKind.rawValue)") { state.open(session) }
-            Button("Copy Resume Command") { state.copyCommand(session) }
-            Divider()
-            Button(session.favorite ? "Remove from Favorites" : "Add to Favorites") {
-                state.toggleFavorite(session)
-            }
-            if !state.tags.isEmpty {
-                Menu("Tags") {
-                    ForEach(state.tags) { tag in
-                        let isOn = session.tags.contains { $0.id == tag.id }
-                        Button {
-                            state.setTag(session, tag: tag, on: !isOn)
-                        } label: {
-                            HStack {
-                                if isOn { Image(systemName: "checkmark") }
-                                Text(tag.name)
-                            }
-                        }
-                    }
-                }
-            }
-            Divider()
-            Button("Delete…", role: .destructive) { pendingDelete = session }
-        }
     }
 }
 
