@@ -87,6 +87,7 @@ enum SidebarFilter: Hashable {
     case favorites
     case live
     case unsorted          // sessions with no tag/note/favorite — the "forgotten" pool
+    case expiring          // close to Claude Code's cleanupPeriodDays auto-delete
     case project(String)   // ProjectGroup.key
     case tag(Int64)        // tag id
 }

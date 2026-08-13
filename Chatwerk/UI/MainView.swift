@@ -168,6 +168,14 @@ struct SidebarView: View {
                 }
                 .badge(state.sessions.filter(\.isUnsorted).count)
                 .tag(SidebarFilter.unsorted)
+                if state.expiringCount > 0 {
+                    Label { Text("Expiring soon") } icon: {
+                        Image(systemName: "hourglass").foregroundStyle(.red)
+                    }
+                    .badge(state.expiringCount)
+                    .tag(SidebarFilter.expiring)
+                    .help("Claude Code auto-deletes transcripts after \(state.retentionDays) days of inactivity (cleanupPeriodDays)")
+                }
             }
             Section("Projects") {
                 ForEach(state.projectGroups) { group in
@@ -347,6 +355,7 @@ struct SessionListView: View {
         case .favorites: return "Favorites"
         case .live: return "Running now"
         case .unsorted: return "Unsorted"
+        case .expiring: return "Expiring soon"
         case .project(let key): return state.projectGroups.first { $0.key == key }?.name ?? "Project"
         case .tag(let id): return state.tags.first { $0.id == id }?.name ?? "Tag"
         }
@@ -387,6 +396,16 @@ struct SessionRowView: View {
                         .foregroundStyle(.green)
                 }
                 Spacer()
+                let daysLeft = state.daysUntilCleanup(for: session)
+                if daysLeft <= 7 {
+                    Text(daysLeft <= 0 ? "⏳ deleting soon" : "⏳ \(daysLeft)d left")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background((daysLeft <= 3 ? Color.red : Color.orange).opacity(0.15), in: Capsule())
+                        .foregroundStyle(daysLeft <= 3 ? .red : .orange)
+                        .help("Claude Code auto-deletes idle transcripts after \(state.retentionDays) days. Archive it (right-click) to keep a copy.")
+                }
                 if session.favorite {
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)

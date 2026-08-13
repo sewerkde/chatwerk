@@ -21,6 +21,9 @@ final class AppState: ObservableObject {
     @Published var claudeDirMissing = false
     @Published var alertMessage: String? = nil
     @Published var selectedSessionId: String? = nil
+    /// Claude Code's transcript retention (cleanupPeriodDays, default 30):
+    /// sessions idle longer than this get auto-deleted by Claude Code itself.
+    @Published var retentionDays: Int = 30
 
     let db: Database
     private var indexer: Indexer?
@@ -49,6 +52,7 @@ final class AppState: ObservableObject {
             fatalError("Chatwerk could not open its database: \(error)")
         }
         claudeDirMissing = !ClaudePaths.exists
+        retentionDays = Self.readRetentionDays()
         sessions = Self.deduped(db.loadAllSessions())
         tags = db.allTags()
         refreshLive()
@@ -82,6 +86,7 @@ final class AppState: ObservableObject {
             case .favorites: base = base.filter { $0.favorite }
             case .live: base = base.filter { $0.isLive }
             case .unsorted: base = base.filter { $0.isUnsorted }
+            case .expiring: base = base.filter { daysUntilCleanup(for: $0) <= 7 }
             case .project(let key): base = base.filter { ($0.cwd ?? $0.projectDir) == key }
             case .tag(let id): base = base.filter { s in s.tags.contains { $0.id == id } }
             }
@@ -142,8 +147,29 @@ final class AppState: ObservableObject {
         return "\(count)|\(newest)|\(total)"
     }
 
+    /// cleanupPeriodDays from ~/.claude/settings.json (Claude Code's default: 30).
+    nonisolated static func readRetentionDays() -> Int {
+        let url = ClaudePaths.claudeDir.appendingPathComponent("settings.json")
+        guard let data = try? Data(contentsOf: url),
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let days = (obj["cleanupPeriodDays"] as? NSNumber)?.intValue else { return 30 }
+        return days
+    }
+
+    /// Days until Claude Code's cleanup would delete this transcript.
+    func daysUntilCleanup(for session: SessionInfo) -> Int {
+        retentionDays - Int(Date().timeIntervalSince(session.modifiedAt) / 86_400)
+    }
+
+    /// Expiring within a week (only meaningful with short retention settings).
+    var expiringCount: Int {
+        sessions.filter { daysUntilCleanup(for: $0) <= 7 }.count
+    }
+
     private func rescanIfChanged() async {
         let sig = await Task.detached(priority: .utility) { Self.scanSignature() }.value
+        let days = await Task.detached(priority: .utility) { Self.readRetentionDays() }.value
+        if days != retentionDays { retentionDays = days }
         if sig != lastScanSignature {
             lastScanSignature = sig
             rescanAndReload(fullIndex: true)

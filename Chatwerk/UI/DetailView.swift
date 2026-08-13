@@ -138,6 +138,12 @@ struct DetailView: View {
                 } else if current.isWorking {
                     statusBadge("Working…", icon: "dot.radiowaves.left.and.right", color: .green)
                 }
+                let daysLeft = state.daysUntilCleanup(for: current)
+                if daysLeft <= 7 {
+                    statusBadge(daysLeft <= 0 ? "Deleting soon" : "Deletes in \(daysLeft)d",
+                                icon: "hourglass", color: daysLeft <= 3 ? .red : .orange)
+                        .help("Claude Code auto-deletes idle transcripts after \(state.retentionDays) days (cleanupPeriodDays). Archive this session to keep a copy.")
+                }
             }
 
             HStack(spacing: 6) {
@@ -285,6 +291,10 @@ struct DetailView: View {
                 infoRow("Started", created.formatted(date: .abbreviated, time: .shortened))
             }
             infoRow("Last activity", current.modifiedAt.formatted(date: .abbreviated, time: .shortened))
+            infoRow("Auto-cleanup",
+                    state.daysUntilCleanup(for: current) > 3650
+                    ? "effectively never (cleanupPeriodDays: \(state.retentionDays))"
+                    : "in \(max(state.daysUntilCleanup(for: current), 0)) days (cleanupPeriodDays: \(state.retentionDays))")
             if let model = current.model {
                 infoRow("Model", model, mono: true)
             }
