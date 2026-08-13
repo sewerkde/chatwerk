@@ -17,7 +17,7 @@ struct ChatwerkApp: App {
                 .environmentObject(state)
         }
 
-        MenuBarExtra("Chatwerk", systemImage: "bubble.left.and.text.bubble.right", isInserted: $showMenuBarExtra) {
+        MenuBarExtra("Chatwerk", image: "MenuBarIcon", isInserted: $showMenuBarExtra) {
             MenuBarContent()
                 .environmentObject(state)
         }

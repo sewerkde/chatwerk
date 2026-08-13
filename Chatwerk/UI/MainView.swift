@@ -1,4 +1,19 @@
 import SwiftUI
+import AppKit
+
+/// Hands the hosting NSWindow to AppState so notification clicks can re-front it.
+private struct WindowAccessor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { AppState.shared?.mainWindow = view.window }
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            if let window = nsView.window { AppState.shared?.mainWindow = window }
+        }
+    }
+}
 
 struct MainView: View {
     @EnvironmentObject var state: AppState
@@ -110,6 +125,7 @@ struct MainView: View {
                 .background(.background)
             }
         }
+        .background(WindowAccessor())
     }
 }
 

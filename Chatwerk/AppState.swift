@@ -1,9 +1,15 @@
 import Foundation
 import SwiftUI
+import AppKit
 import Combine
 
 @MainActor
 final class AppState: ObservableObject {
+
+    /// Set once at launch; used by the notification-click handler.
+    static weak var shared: AppState?
+    /// Captured by MainView so notification clicks can re-front the window.
+    weak var mainWindow: NSWindow?
 
     @Published var sessions: [SessionInfo] = []
     @Published var tags: [TagInfo] = []
@@ -53,6 +59,20 @@ final class AppState: ObservableObject {
         if notifyWhenReady, notifyWithBanner {
             Notifier.requestAuthorizationIfNeeded()
         }
+        Self.shared = self
+        NotificationDelegate.shared.install()
+    }
+
+    /// Bring the app forward and select a session (used by notification clicks).
+    func reveal(sessionUuid: String) {
+        filter = .all
+        searchText = ""
+        searchResults = nil
+        if let session = sessions.first(where: { $0.uuid == sessionUuid }) {
+            selectedSessionId = session.id
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindow?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - Visible list
@@ -190,6 +210,7 @@ final class AppState: ObservableObject {
                    previous != "idle", status == "idle" {
                     let title = sessions.first { $0.uuid == sessionId }?.displayTitle ?? "Claude Code session"
                     Notifier.claudeIsReady(sessionTitle: title,
+                                           sessionUuid: sessionId,
                                            soundName: notifyWithSound ? readySound : nil,
                                            showBanner: notifyWithBanner)
                 }
