@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
@@ -11,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("readySound") private var readySound: String = "Glass"
     @AppStorage("appearance") private var appearanceRaw: String = "system"
     @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
+    @AppStorage("claudeDataDir") private var claudeDataDir: String = ""
 
     var body: some View {
         Form {
@@ -95,10 +97,23 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Data folder") {
-                    Text(ClaudePaths.claudeDir.path)
-                        .textSelection(.enabled)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        TextField("~/.claude (default)", text: $claudeDataDir)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minWidth: 180)
+                        Button("Choose…") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            if panel.runModal() == .OK, let url = panel.url {
+                                claudeDataDir = url.path
+                            }
+                        }
+                    }
                 }
+                Text("Leave empty for the default ~/.claude. Only change this if you run Claude Code with CLAUDE_CONFIG_DIR. Restart Chatwerk after changing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 LabeledContent("Index database") {
                     Text(ClaudePaths.databaseURL.path)
                         .textSelection(.enabled)

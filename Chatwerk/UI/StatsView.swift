@@ -3,6 +3,7 @@ import SwiftUI
 struct StatsView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
 
     var body: some View {
         let stats = state.stats
@@ -25,12 +26,20 @@ struct StatsView: View {
                     }
 
                     Text("Per project").font(.headline)
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
+                    let maxSize = max(stats.projects.map(\.totalSize).max() ?? 1, 1)
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(stats.projects) { p in
-                            GridRow {
-                                Text(p.name).lineLimit(1)
-                                Text("\(p.sessionCount)").foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                                Text(p.totalSize.byteString).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text(p.name).lineLimit(1)
+                                    Spacer()
+                                    Text("\(p.sessionCount) sessions · \(p.totalSize.byteString)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Capsule()
+                                    .fill(Theme.accent(accentName).opacity(0.45))
+                                    .frame(width: max(6, CGFloat(p.totalSize) / CGFloat(maxSize) * 300), height: 5)
                             }
                             .help(p.key)
                         }

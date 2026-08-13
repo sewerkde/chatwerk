@@ -148,18 +148,26 @@ struct SidebarView: View {
             set: { state.filter = $0 ?? .all }
         )) {
             Section("Library") {
-                Label("All Sessions", systemImage: "tray.full")
-                    .badge(state.sessions.count)
-                    .tag(SidebarFilter.all)
-                Label("Favorites", systemImage: "star")
-                    .badge(state.sessions.filter(\.favorite).count)
-                    .tag(SidebarFilter.favorites)
-                Label("Running now", systemImage: "dot.radiowaves.left.and.right")
-                    .badge(state.sessions.filter(\.isLive).count)
-                    .tag(SidebarFilter.live)
-                Label("Unsorted", systemImage: "questionmark.folder")
-                    .badge(state.sessions.filter(\.isUnsorted).count)
-                    .tag(SidebarFilter.unsorted)
+                Label { Text("All Sessions") } icon: {
+                    Image(systemName: "tray.full").foregroundStyle(.blue)
+                }
+                .badge(state.sessions.count)
+                .tag(SidebarFilter.all)
+                Label { Text("Favorites") } icon: {
+                    Image(systemName: "star.fill").foregroundStyle(.yellow)
+                }
+                .badge(state.sessions.filter(\.favorite).count)
+                .tag(SidebarFilter.favorites)
+                Label { Text("Running now") } icon: {
+                    Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(.green)
+                }
+                .badge(state.sessions.filter(\.isLive).count)
+                .tag(SidebarFilter.live)
+                Label { Text("Unsorted") } icon: {
+                    Image(systemName: "questionmark.folder").foregroundStyle(.orange)
+                }
+                .badge(state.sessions.filter(\.isUnsorted).count)
+                .tag(SidebarFilter.unsorted)
             }
             Section("Projects") {
                 ForEach(state.projectGroups) { group in
@@ -387,10 +395,11 @@ struct SessionRowView: View {
             }
             HStack(spacing: 8) {
                 Text(session.projectName)
-                    .font(.caption)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(.quaternary, in: Capsule())
+                    .background(.quaternary.opacity(0.6), in: Capsule())
                 Text(session.modifiedAt.relativeString)
                     .font(.caption)
                     .foregroundStyle(.secondary)

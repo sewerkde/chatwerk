@@ -4,7 +4,15 @@ import Foundation
 /// Chatwerk never writes into this tree except for explicit delete/archive actions.
 enum ClaudePaths {
     static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
-    static var claudeDir: URL { home.appendingPathComponent(".claude") }
+
+    /// Default ~/.claude, overridable in Settings for CLAUDE_CONFIG_DIR users.
+    static var claudeDir: URL {
+        if let custom = UserDefaults.standard.string(forKey: "claudeDataDir"),
+           !custom.trimmingCharacters(in: .whitespaces).isEmpty {
+            return URL(fileURLWithPath: (custom as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        return home.appendingPathComponent(".claude")
+    }
     static var projectsDir: URL { claudeDir.appendingPathComponent("projects") }
     static var liveSessionsDir: URL { claudeDir.appendingPathComponent("sessions") }
     static var historyLog: URL { claudeDir.appendingPathComponent("history.jsonl") }

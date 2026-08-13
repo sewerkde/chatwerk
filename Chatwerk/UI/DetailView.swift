@@ -72,34 +72,8 @@ struct DetailView: View {
                 } label: {
                     Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
                 }
-                .help("Continue this session in your terminal")
-
-                Button {
-                    state.copyCommand(current)
-                } label: {
-                    Label("Copy Command", systemImage: "doc.on.doc")
-                }
-                .help("Copy `claude --resume` command")
-
-                Button {
-                    exportMarkdown()
-                } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
-                }
-                .help("Export transcript as Markdown")
-
-                Button {
-                    archive()
-                } label: {
-                    Label("Archive", systemImage: "archivebox")
-                }
-                .help("Zip this session's files")
-
-                Button(role: .destructive) {
-                    pendingDelete = current
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .help("Continue this session in your terminal (⌘↩)")
 
                 Button {
                     showInfoPanel.toggle()
@@ -107,6 +81,33 @@ struct DetailView: View {
                     Label("Info", systemImage: "sidebar.trailing")
                 }
                 .help("Tags, notes & technical details")
+
+                Menu {
+                    Button {
+                        state.copyCommand(current)
+                    } label: {
+                        Label("Copy Resume Command", systemImage: "doc.on.doc")
+                    }
+                    Button {
+                        exportMarkdown()
+                    } label: {
+                        Label("Export as Markdown…", systemImage: "square.and.arrow.up")
+                    }
+                    Button {
+                        archive()
+                    } label: {
+                        Label("Archive (zip)…", systemImage: "archivebox")
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        pendingDelete = current
+                    } label: {
+                        Label("Delete…", systemImage: "trash")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .help("Copy, export, archive, delete")
             }
         }
     }
@@ -365,11 +366,50 @@ struct DetailView: View {
         } else if let t = transcript {
             let ordered = newestFirst ? Array(t.entries.reversed()) : t.entries
             LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(ordered) { entry in
-                    TranscriptEntryView(entry: entry)
+                ForEach(groupedItems(ordered)) { item in
+                    switch item {
+                    case .message(let entry):
+                        TranscriptEntryView(entry: entry)
+                    case .toolRun(let entries):
+                        ToolRunView(entries: entries)
+                    }
                 }
             }
         }
+    }
+
+    /// Consecutive tool/thinking entries collapse into one "N background steps"
+    /// row so the conversation isn't drowned in tool noise.
+    private enum TranscriptItem: Identifiable {
+        case message(TranscriptEntry)
+        case toolRun([TranscriptEntry])
+        var id: Int {
+            switch self {
+            case .message(let e): return e.id
+            case .toolRun(let list): return -(list[0].id + 1_000_000)
+            }
+        }
+    }
+
+    private func groupedItems(_ entries: [TranscriptEntry]) -> [TranscriptItem] {
+        var out: [TranscriptItem] = []
+        var run: [TranscriptEntry] = []
+        func flush() {
+            if run.count == 1 { out.append(.message(run[0])) }
+            else if run.count > 1 { out.append(.toolRun(run)) }
+            run = []
+        }
+        for e in entries {
+            switch e.kind {
+            case .user, .assistant:
+                flush()
+                out.append(.message(e))
+            default:
+                run.append(e)
+            }
+        }
+        flush()
+        return out
     }
 
     // MARK: - Actions
@@ -474,6 +514,28 @@ struct TranscriptEntryView: View {
         case .toolResult: return "arrow.turn.down.left"
         default: return "circle"
         }
+    }
+}
+
+/// A collapsed run of consecutive tool/thinking entries.
+struct ToolRunView: View {
+    let entries: [TranscriptEntry]
+    @State private var expanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(entries) { entry in
+                    TranscriptEntryView(entry: entry)
+                }
+            }
+            .padding(.leading, 6)
+        } label: {
+            Label("\(entries.count) background steps", systemImage: "gearshape.2")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.leading, 14)
     }
 }
 
