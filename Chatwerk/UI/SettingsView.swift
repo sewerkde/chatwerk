@@ -1,18 +1,97 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
+/// Native macOS tabbed settings: General, Appearance, Notifications, Advanced.
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
+
+    var body: some View {
+        TabView {
+            GeneralSettingsTab()
+                .tabItem { Label("General", systemImage: "gearshape") }
+            AppearanceSettingsTab()
+                .tabItem { Label("Appearance", systemImage: "paintbrush") }
+            NotificationSettingsTab()
+                .tabItem { Label("Notifications", systemImage: "bell.badge") }
+            AdvancedSettingsTab()
+                .tabItem { Label("Advanced", systemImage: "folder.badge.gearshape") }
+        }
+        .frame(width: 500)
+    }
+}
+
+// MARK: - General
+
+private struct GeneralSettingsTab: View {
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") private var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
-    @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
-    @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
-    @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true
-    @AppStorage("readySound") private var readySound: String = "Glass"
+
+    var body: some View {
+        Form {
+            Section("Terminal") {
+                Picker("Open sessions in", selection: $terminalKindRaw) {
+                    ForEach(TerminalKind.allCases) { kind in
+                        Text(kind.rawValue + (kind.isInstalled ? "" : " — not installed"))
+                            .tag(kind.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                if let caveat = TerminalKind(rawValue: terminalKindRaw)?.caveat {
+                    Text(caveat)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                TextField("Claude command", text: $claudeCommand)
+                Text("Used to resume sessions. Set a full path (e.g. /opt/homebrew/bin/claude) if `claude` isn't on your terminal's PATH.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Menu bar") {
+                Toggle("Show menu bar icon", isOn: $showMenuBarExtra)
+            }
+            Section {
+                HStack(spacing: 10) {
+                    Image("SewerkMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Chatwerk \(Self.versionString)")
+                            .font(.headline)
+                        Text("A session manager for Claude Code — made by Sewerk")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 3) {
+                        if let repo = URL(string: "https://github.com/sewerkde/chatwerk") {
+                            Link("GitHub", destination: repo)
+                        }
+                        if let site = URL(string: "https://sewerk.de") {
+                            Link("sewerk.de", destination: site)
+                        }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private static var versionString: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        return build.isEmpty || build == short ? short : "\(short) (\(build))"
+    }
+}
+
+// MARK: - Appearance
+
+private struct AppearanceSettingsTab: View {
     @AppStorage("appearance") private var appearanceRaw: String = "system"
     @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
-    @AppStorage("claudeDataDir") private var claudeDataDir: String = ""
 
     var body: some View {
         Form {
@@ -24,82 +103,102 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 LabeledContent("Accent color") {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         ForEach(Theme.accents, id: \.name) { item in
-                            Circle()
-                                .fill(Theme.dynamic(light: item.light, dark: item.dark))
-                                .frame(width: 20, height: 20)
-                                .overlay {
-                                    if accentName == item.name {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundStyle(.white)
+                            let color = Theme.dynamic(light: item.light, dark: item.dark)
+                            Button {
+                                accentName = item.name
+                            } label: {
+                                Circle()
+                                    .fill(color)
+                                    .frame(width: 20, height: 20)
+                                    .overlay {
+                                        if accentName == item.name {
+                                            Circle()
+                                                .stroke(color, lineWidth: 2)
+                                                .frame(width: 27, height: 27)
+                                        }
                                     }
-                                }
-                                .onTapGesture { accentName = item.name }
-                                .help(item.name)
+                                    .frame(width: 28, height: 28)
+                            }
+                            .buttonStyle(.plain)
+                            .help(item.name)
+                            .accessibilityLabel(item.name)
+                            .accessibilityAddTraits(accentName == item.name ? .isSelected : [])
                         }
                     }
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
+}
 
+// MARK: - Notifications
+
+private struct NotificationSettingsTab: View {
+    @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
+    @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
+    @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true
+    @AppStorage("readySound") private var readySound: String = "Glass"
+    @State private var bannersDenied = false
+
+    var body: some View {
+        Form {
             Section {
-                Picker("Terminal app", selection: $terminalKindRaw) {
-                    ForEach(TerminalKind.allCases) { kind in
-                        Text(kind.rawValue + (kind.isInstalled ? "" : " — not installed"))
-                            .tag(kind.rawValue)
+                Toggle("Notify when Claude is ready", isOn: $notifyWhenReady)
+                Toggle("Play a sound", isOn: $notifyWithSound)
+                    .disabled(!notifyWhenReady)
+                Picker("Sound", selection: $readySound) {
+                    ForEach(Notifier.availableSounds, id: \.self) { name in
+                        Text(name).tag(name)
                     }
                 }
                 .pickerStyle(.menu)
-                Text("Warp is driven via a Launch Configuration, so the resume command runs automatically (and is also copied to your clipboard as a fallback).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                Toggle("Alert when Claude finishes responding", isOn: $notifyWhenReady)
-                Toggle("Play a sound", isOn: $notifyWithSound)
-                    .disabled(!notifyWhenReady)
-                HStack {
-                    Picker("Sound", selection: $readySound) {
-                        ForEach(Notifier.availableSounds, id: \.self) { name in
-                            Text(name).tag(name)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .disabled(!notifyWhenReady || !notifyWithSound)
-                    .onChange(of: readySound) { _, name in
-                        Notifier.preview(sound: name)
-                    }
-                    Button {
-                        Notifier.preview(sound: readySound)
-                    } label: {
-                        Image(systemName: "speaker.wave.2")
-                    }
-                    .disabled(!notifyWhenReady || !notifyWithSound)
-                    .help("Preview sound")
+                .disabled(!notifyWhenReady || !notifyWithSound)
+                .onChange(of: readySound) { _, name in
+                    Notifier.preview(sound: name)
                 }
                 Toggle("Show a notification banner", isOn: $notifyWithBanner)
                     .disabled(!notifyWhenReady)
                     .onChange(of: notifyWithBanner) { _, on in
                         if on { Notifier.requestAuthorizationIfNeeded() }
                     }
+                if bannersDenied && notifyWhenReady && notifyWithBanner {
+                    HStack(spacing: 6) {
+                        Text("Banners are disabled in System Settings.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
+                            Link("Open Notification Settings", destination: url)
+                                .font(.caption)
+                        }
+                    }
+                }
                 Text("Fires when a running session becomes idle again — so you notice Claude is waiting for you.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+        .formStyle(.grouped)
+        .task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            bannersDenied = settings.authorizationStatus == .denied
+        }
+    }
+}
 
-            Section {
-                TextField("Claude command", text: $claudeCommand)
-                    .help("Command used to resume sessions. Change it if `claude` is not on your terminal's PATH, e.g. /opt/homebrew/bin/claude")
-                Toggle("Show menu bar icon", isOn: $showMenuBarExtra)
-            }
+// MARK: - Advanced
 
-            Section {
+private struct AdvancedSettingsTab: View {
+    @AppStorage("claudeDataDir") private var claudeDataDir: String = ""
+
+    var body: some View {
+        Form {
+            Section("Claude Code data") {
                 LabeledContent("Data folder") {
                     HStack(spacing: 6) {
                         TextField("~/.claude (default)", text: $claudeDataDir)
-                            .textFieldStyle(.roundedBorder)
                             .frame(minWidth: 180)
                         Button("Choose…") {
                             let panel = NSOpenPanel()
@@ -114,6 +213,8 @@ struct SettingsView: View {
                 Text("Leave empty for the default ~/.claude. Only change this if you run Claude Code with CLAUDE_CONFIG_DIR. Restart Chatwerk after changing.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            Section("Privacy") {
                 LabeledContent("Index database") {
                     Text(ClaudePaths.databaseURL.path)
                         .textSelection(.enabled)
@@ -123,28 +224,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section {
-                HStack(spacing: 10) {
-                    Image("SewerkMark")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 28, height: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Chatwerk \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                            .font(.headline)
-                        Text("A session manager for Claude Code — made by Sewerk")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Link("sewerk.de", destination: URL(string: "https://sewerk.de")!)
-                        .font(.caption)
-                }
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }

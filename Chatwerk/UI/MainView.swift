@@ -20,7 +20,6 @@ struct MainView: View {
     @State private var pendingDelete: SessionInfo?
     @State private var showStats = false
     @State private var showNewTag = false
-    @State private var showQuickSearch = false
     @AppStorage("didOnboard") private var didOnboard = false
 
     var body: some View {
@@ -42,7 +41,7 @@ struct MainView: View {
             }
         }
         .searchable(text: $state.searchText, placement: .toolbar,
-                    prompt: "Search chats, notes, tags…")
+                    prompt: "Search sessions…")
         .onChange(of: state.searchText) { _, _ in state.searchTextChanged() }
         .toolbar {
             ToolbarItem {
@@ -55,34 +54,17 @@ struct MainView: View {
                     }
                 }
             }
-            ToolbarItemGroup {
-                Button {
-                    showQuickSearch = true
-                } label: {
-                    Label("Quick Search", systemImage: "sparkle.magnifyingglass")
-                }
-                .keyboardShortcut("k", modifiers: .command)
-                .help("Quick search everywhere (⌘K)")
-
+            ToolbarItem {
                 Button {
                     showStats = true
                 } label: {
                     Label("Usage & Stats", systemImage: "chart.bar.xaxis")
                 }
                 .help("Token usage, costs & cleanup")
-
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                .help("Settings (⌘,)")
             }
         }
         .sheet(isPresented: $showStats) {
             StatsView()
-                .environmentObject(state)
-        }
-        .sheet(isPresented: $showQuickSearch) {
-            QuickSearchView()
                 .environmentObject(state)
         }
         .sheet(isPresented: Binding(
@@ -130,6 +112,20 @@ struct MainView: View {
                 .background(.background)
             }
         }
+        .overlay(alignment: .top) {
+            if state.showQuickSearch {
+                ZStack(alignment: .top) {
+                    Color.black.opacity(0.15)
+                        .ignoresSafeArea()
+                        .onTapGesture { state.showQuickSearch = false }
+                    QuickSearchView()
+                        .environmentObject(state)
+                        .padding(.top, 90)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: state.showQuickSearch)
         .background(WindowAccessor())
     }
 }
@@ -146,28 +142,22 @@ struct SidebarView: View {
             set: { state.filter = $0 ?? .all }
         )) {
             Section("Library") {
-                Label { Text("All Sessions") } icon: {
-                    Image(systemName: "tray.full").foregroundStyle(.blue)
-                }
-                .badge(state.sessions.count)
-                .tag(SidebarFilter.all)
-                Label { Text("Favorites") } icon: {
-                    Image(systemName: "star.fill").foregroundStyle(.yellow)
-                }
-                .badge(state.sessions.filter(\.favorite).count)
-                .tag(SidebarFilter.favorites)
-                Label { Text("Running now") } icon: {
+                Label("All Sessions", systemImage: "bubble.left.and.bubble.right")
+                    .badge(state.sessions.count)
+                    .tag(SidebarFilter.all)
+                Label("Favorites", systemImage: "star.fill")
+                    .badge(state.sessions.filter(\.favorite).count)
+                    .tag(SidebarFilter.favorites)
+                Label { Text("Running Now") } icon: {
                     Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(.green)
                 }
                 .badge(state.sessions.filter(\.isLive).count)
                 .tag(SidebarFilter.live)
-                Label { Text("Unsorted") } icon: {
-                    Image(systemName: "questionmark.folder.fill").foregroundStyle(.orange)
-                }
-                .badge(state.sessions.filter(\.isUnsorted).count)
-                .tag(SidebarFilter.unsorted)
+                Label("Unsorted", systemImage: "tag.slash")
+                    .badge(state.sessions.filter(\.isUnsorted).count)
+                    .tag(SidebarFilter.unsorted)
                 if state.expiringCount > 0 {
-                    Label { Text("Expiring soon") } icon: {
+                    Label { Text("Expiring Soon") } icon: {
                         Image(systemName: "hourglass").foregroundStyle(.red)
                     }
                     .badge(state.expiringCount)
@@ -276,11 +266,35 @@ struct SessionListView: View {
                 if state.searchResults != nil {
                     ContentUnavailableView.search(text: state.searchText)
                 } else {
-                    ContentUnavailableView("No sessions here", systemImage: "tray")
+                    emptyState
                 }
             }
         }
         .navigationTitle(navigationTitle)
+    }
+
+    /// Empty states explain the next step instead of a bare "nothing here".
+    @ViewBuilder
+    private var emptyState: some View {
+        switch state.filter {
+        case .favorites:
+            ContentUnavailableView("No Favorites yet", systemImage: "star",
+                                   description: Text("Right-click a session and choose Add to Favorites."))
+        case .live:
+            ContentUnavailableView("Nothing running", systemImage: "dot.radiowaves.left.and.right",
+                                   description: Text("No Claude Code session is active right now."))
+        case .unsorted:
+            ContentUnavailableView("All sorted", systemImage: "tag",
+                                   description: Text("Every session has a tag, note or custom title."))
+        case .expiring:
+            ContentUnavailableView("Nothing expiring", systemImage: "hourglass",
+                                   description: Text("No session is close to Claude Code's auto-cleanup."))
+        case .tag:
+            ContentUnavailableView("No sessions with this tag", systemImage: "tag",
+                                   description: Text("Right-click sessions to apply this tag."))
+        default:
+            ContentUnavailableView("No sessions here", systemImage: "tray")
+        }
     }
 
     @ViewBuilder
@@ -351,9 +365,9 @@ struct SessionListView: View {
         switch state.filter {
         case .all: return "All Sessions"
         case .favorites: return "Favorites"
-        case .live: return "Running now"
+        case .live: return "Running Now"
         case .unsorted: return "Unsorted"
-        case .expiring: return "Expiring soon"
+        case .expiring: return "Expiring Soon"
         case .project(let key): return state.projectGroups.first { $0.key == key }?.name ?? "Project"
         case .tag(let id): return state.tags.first { $0.id == id }?.name ?? "Tag"
         }
@@ -362,6 +376,7 @@ struct SessionListView: View {
 
 struct SessionRowView: View {
     @EnvironmentObject var state: AppState
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
 
@@ -378,29 +393,11 @@ struct SessionRowView: View {
                 Text(session.displayTitle)
                     .font(.headline)
                     .lineLimit(1)
-                if session.isWaitingForYou {
-                    Text("Your turn")
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(.orange.opacity(0.2), in: Capsule())
-                        .foregroundStyle(.orange)
-                } else if session.isWorking {
-                    Text("Working…")
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(.green.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.green)
-                }
                 Spacer()
                 let daysLeft = state.daysUntilCleanup(for: session)
                 if daysLeft <= 7 {
-                    Text(daysLeft <= 0 ? "⏳ deleting soon" : "⏳ \(daysLeft)d left")
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background((daysLeft <= 3 ? Color.red : Color.orange).opacity(0.15), in: Capsule())
+                    Label(daysLeft <= 0 ? "Deleting soon" : "\(daysLeft)d left", systemImage: "hourglass")
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(daysLeft <= 3 ? .red : .orange)
                         .help("Claude Code auto-deletes idle transcripts after \(state.retentionDays) days. Archive it (right-click) to keep a copy.")
                 }
@@ -410,17 +407,10 @@ struct SessionRowView: View {
                         .imageScale(.small)
                 }
             }
-            HStack(spacing: 8) {
-                Text(session.projectName)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(.quaternary.opacity(0.6), in: Capsule())
-                Text(metaLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text("\(session.projectName) · \(metaLine)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             if !session.tags.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(session.tags) { tag in
@@ -434,7 +424,7 @@ struct SessionRowView: View {
                 }
             }
             if let snippet = session.searchSnippet {
-                Text(SnippetText.highlighted(snippet))
+                Text(SnippetText.highlighted(snippet, accent: Theme.accent(accentName)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -456,7 +446,7 @@ struct SessionRowView: View {
 
     private var metaLine: String {
         var parts = [session.modifiedAt.relativeString, session.size.byteString]
-        if session.messageCount > 0 { parts.append("\(session.messageCount) msgs") }
+        if session.messageCount > 0 { parts.append("\(session.messageCount) messages") }
         return parts.joined(separator: " · ")
     }
 }

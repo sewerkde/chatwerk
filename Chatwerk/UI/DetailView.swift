@@ -5,11 +5,11 @@ struct DetailView: View {
     @EnvironmentObject var state: AppState
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
-    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
-    private var accent: Color { Theme.accent(accentName) }
 
     @State private var customTitle: String = ""
     @State private var note: String = ""
+    @State private var saveTask: Task<Void, Never>?
+    @State private var pendingSaveUuid: String?
     @State private var transcript: TranscriptPage?
     @State private var loadingTranscript = false
     @State private var showNewTag = false
@@ -74,7 +74,6 @@ struct DetailView: View {
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.return, modifiers: .command)
                 .help("Continue this session in your terminal (⌘↩)")
 
                 Button {
@@ -129,11 +128,22 @@ struct DetailView: View {
                 .buttonStyle(.plain)
                 .help("Favorite")
 
-                TextField(current.title ?? "Untitled session", text: $customTitle)
-                    .textFieldStyle(.plain)
-                    .font(.title2.bold())
-                    .onSubmit { saveMeta() }
-                    .onChange(of: customTitle) { _, _ in saveMeta() }
+                // The auto-title must read as the real title, not as gray
+                // placeholder text — so it sits behind an empty TextField.
+                ZStack(alignment: .leading) {
+                    if customTitle.isEmpty {
+                        Text(current.title ?? "Untitled session")
+                            .font(.title2.bold())
+                            .lineLimit(1)
+                            .allowsHitTesting(false)
+                    }
+                    TextField("", text: $customTitle)
+                        .textFieldStyle(.plain)
+                        .font(.title2.bold())
+                        .onSubmit { saveNow() }
+                        .onChange(of: customTitle) { _, _ in saveDebounced() }
+                }
+                .help("Click to give this session your own title")
 
                 if current.isWaitingForYou {
                     statusBadge("Your turn", icon: "hand.raised.fill", color: .orange)
@@ -148,13 +158,12 @@ struct DetailView: View {
                 }
             }
 
-            HStack(spacing: 6) {
-                chip(icon: "folder", text: current.projectName, help: current.cwd ?? current.projectDir)
-                chip(icon: "clock", text: current.modifiedAt.relativeString)
-                chip(icon: "internaldrive", text: current.size.byteString)
-                if current.messageCount > 0 {
-                    chip(icon: "bubble.left.and.bubble.right", text: "\(current.messageCount) msgs")
-                }
+            HStack(spacing: 8) {
+                Text(headerMetaLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(current.cwd ?? current.projectDir)
                 ForEach(current.tags) { tag in
                     Text(tag.name)
                         .font(.caption)
@@ -171,6 +180,12 @@ struct DetailView: View {
         .background(.bar)
     }
 
+    private var headerMetaLine: String {
+        var parts = [current.projectName, current.modifiedAt.relativeString, current.size.byteString]
+        if current.messageCount > 0 { parts.append("\(current.messageCount) messages") }
+        return parts.joined(separator: " · ")
+    }
+
     private func statusBadge(_ text: String, icon: String, color: Color) -> some View {
         Label(text, systemImage: icon)
             .font(.caption.weight(.semibold))
@@ -178,21 +193,6 @@ struct DetailView: View {
             .padding(.vertical, 3)
             .background(color.opacity(0.15), in: Capsule())
             .foregroundStyle(color)
-    }
-
-    private func chip(icon: String, text: String, help: String? = nil) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .imageScale(.small)
-                .foregroundStyle(.secondary)
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(.quaternary.opacity(0.5), in: Capsule())
-        .help(help ?? text)
     }
 
     // MARK: - Inspector (tags, notes, technical details)
@@ -267,7 +267,7 @@ struct DetailView: View {
                                     .allowsHitTesting(false)
                             }
                         }
-                        .onChange(of: note) { _, _ in saveMeta() }
+                        .onChange(of: note) { _, _ in saveDebounced() }
                 }
 
                 Divider()
@@ -391,21 +391,38 @@ struct DetailView: View {
                         TranscriptEntryView(entry: entry)
                     case .toolRun(let entries):
                         ToolRunView(entries: entries)
+                    case .day(let date):
+                        daySeparator(date)
                     }
                 }
             }
         }
     }
 
+    private func daySeparator(_ date: Date) -> some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(.quaternary).frame(height: 1)
+            Text(date.formatted(date: .abbreviated, time: .omitted))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .fixedSize()
+            Rectangle().fill(.quaternary).frame(height: 1)
+        }
+        .padding(.vertical, 4)
+    }
+
     /// Consecutive tool/thinking entries collapse into one "N background steps"
-    /// row so the conversation isn't drowned in tool noise.
+    /// row so the conversation isn't drowned in tool noise; a separator row is
+    /// inserted whenever the calendar day changes between messages.
     private enum TranscriptItem: Identifiable {
         case message(TranscriptEntry)
         case toolRun([TranscriptEntry])
-        var id: Int {
+        case day(Date)
+        var id: String {
             switch self {
-            case .message(let e): return e.id
-            case .toolRun(let list): return -(list[0].id + 1_000_000)
+            case .message(let e): return "m\(e.id)"
+            case .toolRun(let list): return "t\(list[0].id)"
+            case .day(let date): return "d\(Int(date.timeIntervalSince1970))"
             }
         }
     }
@@ -413,15 +430,26 @@ struct DetailView: View {
     private func groupedItems(_ entries: [TranscriptEntry]) -> [TranscriptItem] {
         var out: [TranscriptItem] = []
         var run: [TranscriptEntry] = []
+        var lastDay: Date?
+        let cal = Calendar.current
         func flush() {
             if run.count == 1 { out.append(.message(run[0])) }
             else if run.count > 1 { out.append(.toolRun(run)) }
             run = []
         }
+        func markDay(_ ts: Date?) {
+            guard let ts else { return }
+            let day = cal.startOfDay(for: ts)
+            if lastDay != day {
+                lastDay = day
+                out.append(.day(day))
+            }
+        }
         for e in entries {
             switch e.kind {
             case .user, .assistant:
                 flush()
+                markDay(e.timestamp)
                 out.append(.message(e))
             default:
                 run.append(e)
@@ -433,13 +461,37 @@ struct DetailView: View {
 
     // MARK: - Actions
 
-    private func saveMeta() {
-        let title = customTitle.isEmpty ? nil : customTitle
-        let noteValue = note.isEmpty ? nil : note
+    /// Persist title/note after a short pause instead of on every keystroke.
+    /// The target session and values are captured at schedule time, so a
+    /// pending save still lands correctly if the selection changes meanwhile.
+    private func saveDebounced() {
+        let target = current
+        // Only supersede a pending save for the SAME session — a save queued
+        // for the previous selection must still run with its captured values.
+        if pendingSaveUuid == target.uuid { saveTask?.cancel() }
+        pendingSaveUuid = target.uuid
+        let title = customTitle
+        let noteValue = note
+        saveTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            persist(target: target, title: title, note: noteValue)
+        }
+    }
+
+    private func saveNow() {
+        saveTask?.cancel()
+        persist(target: current, title: customTitle, note: note)
+    }
+
+    private func persist(target: SessionInfo, title: String, note noteValue: String) {
+        let titleOrNil = title.isEmpty ? nil : title
+        let noteOrNil = noteValue.isEmpty ? nil : noteValue
         // Skip no-op writes — the per-selection state reset would otherwise
         // publish a fake change on every click.
-        guard title != current.customTitle || noteValue != current.note else { return }
-        state.updateMeta(current, customTitle: customTitle, note: note, favorite: current.favorite)
+        guard titleOrNil != target.customTitle || noteOrNil != target.note else { return }
+        let favorite = state.sessions.first { $0.uuid == target.uuid }?.favorite ?? target.favorite
+        state.updateMeta(target, customTitle: title, note: noteValue, favorite: favorite)
     }
 
     private func exportMarkdown() {
@@ -471,10 +523,10 @@ struct DetailView: View {
 
 struct TranscriptEntryView: View {
     let entry: TranscriptEntry
-    @AppStorage("accentName") private var accentName2: String = "Sewerk Orange"
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
     @State private var expanded = false
 
-    private var accent: Color { Theme.accent(accentName2) }
+    private var accent: Color { Theme.accent(accentName) }
 
     var body: some View {
         switch entry.kind {
@@ -487,9 +539,11 @@ struct TranscriptEntryView: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(isUser ? accent : .primary)
                     if let ts = entry.timestamp {
-                        Text(ts.formatted(date: .abbreviated, time: .shortened))
+                        // Day changes get their own separator row, so per-message
+                        // timestamps only need the time.
+                        Text(ts.formatted(date: .omitted, time: .shortened))
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 MessageBody(text: entry.text.count > 6000 ? String(entry.text.prefix(6000)) + " …" : entry.text)
@@ -504,10 +558,6 @@ struct TranscriptEntryView: View {
                 in: RoundedRectangle(cornerRadius: 10)
             )
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isUser ? accent.opacity(0.35) : Color.secondary.opacity(0.2))
-            )
         case .thinking, .toolUse, .toolResult:
             DisclosureGroup(isExpanded: $expanded) {
                 ScrollView(.horizontal) {

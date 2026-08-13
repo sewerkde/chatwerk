@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var claudeDirMissing = false
     @Published var alertMessage: String? = nil
     @Published var selectedSessionId: String? = nil
+    @Published var showQuickSearch = false
     /// Claude Code's transcript retention (cleanupPeriodDays, default 30):
     /// sessions idle longer than this get auto-deleted by Claude Code itself.
     @Published var retentionDays: Int = 30
@@ -46,22 +47,34 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        do {
-            db = try Database(url: ClaudePaths.databaseURL)
-        } catch {
-            fatalError("Chatwerk could not open its database: \(error)")
-        }
+        db = Self.openDatabase()
         claudeDirMissing = !ClaudePaths.exists
         retentionDays = Self.readRetentionDays()
         sessions = Self.deduped(db.loadAllSessions())
         tags = db.allTags()
         refreshLive()
         startBackgroundWork()
-        if notifyWhenReady, notifyWithBanner {
-            Notifier.requestAuthorizationIfNeeded()
-        }
         Self.shared = self
         NotificationDelegate.shared.install()
+    }
+
+    /// The index is a rebuildable cache: if it can't be opened (corruption,
+    /// interrupted migration), move it aside and start fresh instead of dying.
+    private nonisolated static func openDatabase() -> Database {
+        let url = ClaudePaths.databaseURL
+        if let db = try? Database(url: url) { return db }
+        let fm = FileManager.default
+        let broken = url.appendingPathExtension("broken")
+        try? fm.removeItem(at: broken)
+        try? fm.moveItem(at: url, to: broken)
+        for suffix in ["-wal", "-shm"] {
+            try? fm.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
+        do {
+            return try Database(url: url)
+        } catch {
+            fatalError("Chatwerk could not create its index database at \(url.path): \(error)")
+        }
     }
 
     /// Bring the app forward and select a session (used by notification clicks).
@@ -72,7 +85,7 @@ final class AppState: ObservableObject {
         if let session = sessions.first(where: { $0.uuid == sessionUuid }) {
             selectedSessionId = session.id
         }
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         mainWindow?.makeKeyAndOrderFront(nil)
     }
 
@@ -399,6 +412,7 @@ final class AppState: ObservableObject {
             try Cleaner.delete(session: session, liveSessionIds: liveIds)
             db.purgeSession(uuid: session.uuid)
             sessions.removeAll { $0.uuid == session.uuid }
+            searchResults?.removeAll { $0.uuid == session.uuid }
             if selectedSessionId == session.id { selectedSessionId = nil }
         } catch {
             alertMessage = error.localizedDescription
@@ -418,10 +432,11 @@ final class AppState: ObservableObject {
         for i in sessions.indices where sessions[i].uuid == uuid {
             change(&sessions[i])
         }
-        if searchResults != nil {
-            for i in searchResults!.indices where searchResults![i].uuid == uuid {
-                change(&searchResults![i])
+        if var results = searchResults {
+            for i in results.indices where results[i].uuid == uuid {
+                change(&results[i])
             }
+            searchResults = results
         }
     }
 

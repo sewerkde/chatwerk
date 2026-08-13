@@ -15,7 +15,6 @@ enum ClaudePaths {
     }
     static var projectsDir: URL { claudeDir.appendingPathComponent("projects") }
     static var liveSessionsDir: URL { claudeDir.appendingPathComponent("sessions") }
-    static var historyLog: URL { claudeDir.appendingPathComponent("history.jsonl") }
     static var fileHistoryDir: URL { claudeDir.appendingPathComponent("file-history") }
     static var tasksDir: URL { claudeDir.appendingPathComponent("tasks") }
     static var sessionEnvDir: URL { claudeDir.appendingPathComponent("session-env") }

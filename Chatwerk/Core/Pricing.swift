@@ -15,7 +15,8 @@ enum Pricing {
         var cacheWrite1h: Double { input * 2 }
     }
 
-    /// Ordered longest-prefix-first so specific versions match before families.
+    /// Specific versions are listed before their family fallbacks;
+    /// the first matching prefix wins.
     private static let rates: [(prefix: String, rate: Rate)] = [
         ("claude-fable-5", Rate(input: 10, output: 50)),
         ("claude-mythos", Rate(input: 10, output: 50)),
@@ -51,20 +52,50 @@ enum Pricing {
     }
 
     static func dollars(_ value: Double) -> String {
-        value >= 100 ? String(format: "$%.0f", value)
+        value == 0 ? "$0"
+            : value >= 100 ? String(format: "$%.0f", value)
             : value >= 1 ? String(format: "$%.2f", value)
             : String(format: "$%.3f", value)
+    }
+
+    /// Human-readable model name for display ("Opus 4.8", "Sonnet 4.5");
+    /// unknown ids fall back to the raw id. Specific versions come first.
+    static func displayName(for model: String) -> String {
+        let names: [(prefix: String, name: String)] = [
+            ("claude-fable-5", "Fable 5"),
+            ("claude-mythos", "Mythos 5"),
+            ("claude-opus-5", "Opus 5"),
+            ("claude-opus-4-8", "Opus 4.8"),
+            ("claude-opus-4-7", "Opus 4.7"),
+            ("claude-opus-4-6", "Opus 4.6"),
+            ("claude-opus-4-5", "Opus 4.5"),
+            ("claude-opus-4-1", "Opus 4.1"),
+            ("claude-opus-4-0", "Opus 4"),
+            ("claude-opus-4-2", "Opus 4"),
+            ("claude-sonnet-5", "Sonnet 5"),
+            ("claude-sonnet-4-6", "Sonnet 4.6"),
+            ("claude-sonnet-4-5", "Sonnet 4.5"),
+            ("claude-sonnet-4-0", "Sonnet 4"),
+            ("claude-3-7-sonnet", "Sonnet 3.7"),
+            ("claude-3-5-sonnet", "Sonnet 3.5"),
+            ("claude-haiku-4-5", "Haiku 4.5"),
+            ("claude-3-5-haiku", "Haiku 3.5"),
+            ("claude-3-haiku", "Haiku 3"),
+            ("claude-opus", "Opus"),
+            ("claude-sonnet", "Sonnet"),
+            ("claude-haiku", "Haiku"),
+        ]
+        return names.first { model.hasPrefix($0.prefix) }?.name ?? model
     }
 }
 
 extension Int64 {
-    /// Compact token formatting: 1.2k, 45M …
+    /// Compact token formatting: 999K, 1.2M, 45M, 1.23B.
     var tokenString: String {
-        switch self {
-        case ..<1_000: return "\(self)"
-        case ..<1_000_000: return String(format: "%.1fk", Double(self) / 1_000)
-        case ..<1_000_000_000: return String(format: "%.1fM", Double(self) / 1_000_000)
-        default: return String(format: "%.2fB", Double(self) / 1_000_000_000)
-        }
+        Double(self).formatted(
+            .number.notation(.compactName)
+                .precision(.significantDigits(1...3))
+                .locale(Locale(identifier: "en_US"))
+        )
     }
 }

@@ -88,19 +88,19 @@ final class Database {
         try? execRaw("ALTER TABLE usage_daily ADD COLUMN cache_write_1h INTEGER NOT NULL DEFAULT 0")
         try? execRaw("ALTER TABLE sessions ADD COLUMN last_usage_msg_id TEXT")
 
-        // Schema v3 adds usage aggregation with the 5m/1h cache-write split
-        // (they bill differently); force one full re-index so token data is
-        // backfilled from existing transcripts.
+        // Schema v4: usage aggregation with the 5m/1h cache-write split (they
+        // bill differently) and subagent (sidechain) usage counted in; force
+        // one full re-index so token data is backfilled from all transcripts.
         var version: Int32 = 0
         run("PRAGMA user_version") { s in version = sqlite3_column_int(s, 0) }
-        if version < 3 {
+        if version < 4 {
             try execRaw("""
             DELETE FROM fts;
             DELETE FROM usage_daily;
             UPDATE sessions SET indexed_offset=0, message_count=0, last_usage_msg_id=NULL,
                 in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0,
                 cache_write_1h_tokens=0;
-            PRAGMA user_version = 3;
+            PRAGMA user_version = 4;
             """)
         }
     }
@@ -151,6 +151,17 @@ final class Database {
     private static func text(_ stmt: OpaquePointer, _ col: Int32) -> String? {
         guard let c = sqlite3_column_text(stmt, col) else { return nil }
         return String(cString: c)
+    }
+
+    /// Runs `body` inside BEGIN…COMMIT; if any statement failed, the batch is
+    /// rolled back instead of half-committed. Call only on `queue`.
+    private func transaction(_ body: () -> Bool) {
+        run("BEGIN")
+        if body() {
+            run("COMMIT")
+        } else {
+            run("ROLLBACK")
+        }
     }
 
     // MARK: - Sessions
@@ -266,13 +277,15 @@ final class Database {
     func appendIndexed(uuid: String, projectDir: String, entries: [(role: String, text: String)],
                        newOffset: Int64, addedMessages: Int) {
         queue.sync {
-            run("BEGIN")
-            for e in entries {
-                run("INSERT INTO fts (uuid, role, content) VALUES (?,?,?)", [uuid, e.role, e.text])
+            transaction {
+                var ok = true
+                for e in entries {
+                    ok = run("INSERT INTO fts (uuid, role, content) VALUES (?,?,?)", [uuid, e.role, e.text]) && ok
+                }
+                ok = run("UPDATE sessions SET indexed_offset=?, message_count=message_count+? WHERE uuid=? AND project_dir=?",
+                         [newOffset, addedMessages, uuid, projectDir]) && ok
+                return ok
             }
-            run("UPDATE sessions SET indexed_offset=?, message_count=message_count+? WHERE uuid=? AND project_dir=?",
-                [newOffset, addedMessages, uuid, projectDir])
-            run("COMMIT")
         }
     }
 
@@ -294,25 +307,26 @@ final class Database {
                      daily: [(day: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)]) {
         guard input + output + cacheRead + cacheWrite > 0 else { return }
         queue.sync {
-            run("BEGIN")
-            run("""
-            UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
-                cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?,
-                cache_write_1h_tokens=cache_write_1h_tokens+?,
-                last_usage_msg_id=COALESCE(?, last_usage_msg_id)
-            WHERE uuid=? AND project_dir=?
-            """, [input, output, cacheRead, cacheWrite, cacheWrite1h, lastMessageId, uuid, projectDir])
-            for d in daily {
-                run("""
-                INSERT INTO usage_daily (day, model, input, output, cache_read, cache_write, cache_write_1h)
-                VALUES (?,?,?,?,?,?,?)
-                ON CONFLICT(day, model) DO UPDATE SET
-                    input=input+excluded.input, output=output+excluded.output,
-                    cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
-                    cache_write_1h=cache_write_1h+excluded.cache_write_1h
-                """, [d.day, d.model, d.input, d.output, d.cacheRead, d.cacheWrite, d.cacheWrite1h])
+            transaction {
+                var ok = run("""
+                UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
+                    cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?,
+                    cache_write_1h_tokens=cache_write_1h_tokens+?,
+                    last_usage_msg_id=COALESCE(?, last_usage_msg_id)
+                WHERE uuid=? AND project_dir=?
+                """, [input, output, cacheRead, cacheWrite, cacheWrite1h, lastMessageId, uuid, projectDir])
+                for d in daily {
+                    ok = run("""
+                    INSERT INTO usage_daily (day, model, input, output, cache_read, cache_write, cache_write_1h)
+                    VALUES (?,?,?,?,?,?,?)
+                    ON CONFLICT(day, model) DO UPDATE SET
+                        input=input+excluded.input, output=output+excluded.output,
+                        cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
+                        cache_write_1h=cache_write_1h+excluded.cache_write_1h
+                    """, [d.day, d.model, d.input, d.output, d.cacheRead, d.cacheWrite, d.cacheWrite1h]) && ok
+                }
+                return ok
             }
-            run("COMMIT")
         }
     }
 

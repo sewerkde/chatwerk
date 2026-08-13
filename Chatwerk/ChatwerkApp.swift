@@ -18,6 +18,13 @@ struct ChatwerkApp: App {
         .commands {
             // Single-window app: "File > New Window" only confuses.
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .sidebar) {
+                Button("Quick Search…") {
+                    state.showQuickSearch = true
+                }
+                .keyboardShortcut("k", modifiers: .command)
+                Divider()
+            }
             CommandMenu("Session") {
                 Button("Continue in \(state.terminalKind.rawValue)") {
                     if let s = state.selectedSession { state.open(s) }
@@ -58,30 +65,42 @@ private struct MenuBarContent: View {
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
 
     var body: some View {
-        Text("Recent sessions")
-        ForEach(state.sessions.prefix(10)) { session in
-            Button {
-                state.open(session)
-            } label: {
-                Text(menuTitle(session))
+        Section("Recent Sessions") {
+            if state.sessions.isEmpty {
+                Text("No sessions yet")
+            }
+            ForEach(state.sessions.prefix(10)) { session in
+                Button {
+                    state.open(session)
+                } label: {
+                    Label(menuTitle(session), systemImage: menuSymbol(session))
+                }
             }
         }
         Divider()
-        Toggle("Alert when Claude is ready", isOn: $notifyWhenReady)
+        Toggle("Notify when Claude is ready", isOn: $notifyWhenReady)
         Divider()
         Button("Open Chatwerk") {
             openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
         }
+        .keyboardShortcut("o")
         Button("Quit Chatwerk") {
             NSApp.terminate(nil)
         }
+        .keyboardShortcut("q")
     }
 
     private func menuTitle(_ s: SessionInfo) -> String {
         let title = s.displayTitle
-        let short = title.count > 50 ? String(title.prefix(50)) + "…" : title
-        let badge = s.isWaitingForYou ? "🟠 " : (s.isLive ? "🟢 " : "")
-        return badge + short
+        return title.count > 50 ? String(title.prefix(50)) + "…" : title
+    }
+
+    /// Menus render template-only, so status is encoded in symbol shape:
+    /// waiting → exclamation bubble, working → ellipsis bubble, else plain.
+    private func menuSymbol(_ s: SessionInfo) -> String {
+        if s.isWaitingForYou { return "exclamationmark.bubble.fill" }
+        if s.isWorking { return "ellipsis.bubble.fill" }
+        return "bubble.left"
     }
 }

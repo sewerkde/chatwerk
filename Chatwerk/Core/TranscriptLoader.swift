@@ -41,6 +41,10 @@ enum TranscriptLoader {
         return f
     }()
 
+    /// Fallback for timestamps without fractional seconds — cached, because
+    /// allocating a formatter per line is exactly what we avoid elsewhere.
+    static let isoFormatterNoFraction = ISO8601DateFormatter()
+
     /// Reads only the last `tailBytes` of huge transcripts so the viewer opens
     /// instantly, and cooperates with Task cancellation so rapid clicking
     /// through sessions doesn't stack full-file reads.
@@ -72,7 +76,7 @@ enum TranscriptLoader {
                 guard (obj["isSidechain"] as? Bool) != true else { continue }
                 guard let message = obj["message"] as? [String: Any] else { continue }
 
-                let ts = (obj["timestamp"] as? String).flatMap { isoFormatter.date(from: $0) ?? ISO8601DateFormatter().date(from: $0) }
+                let ts = (obj["timestamp"] as? String).flatMap { isoFormatter.date(from: $0) ?? isoFormatterNoFraction.date(from: $0) }
 
                 for entry in entries(from: message, type: type, timestamp: ts, nextId: &nextId) {
                     total += 1

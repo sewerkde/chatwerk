@@ -10,11 +10,24 @@ enum Notifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    /// macOS system alert sounds available for the ready-chime.
-    static let availableSounds = [
-        "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
-        "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink",
-    ]
+    /// Alert sounds for the ready-chime: whatever the system and the user
+    /// actually have installed, with the classic names as a fallback.
+    static let availableSounds: [String] = {
+        var names = Set<String>()
+        for dir in ["/System/Library/Sounds", NSHomeDirectory() + "/Library/Sounds"] {
+            for file in (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [] {
+                let url = URL(fileURLWithPath: file)
+                if ["aiff", "aif", "m4a", "caf", "wav"].contains(url.pathExtension.lowercased()) {
+                    names.insert(url.deletingPathExtension().lastPathComponent)
+                }
+            }
+        }
+        guard !names.isEmpty else {
+            return ["Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
+                    "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink"]
+        }
+        return names.sorted()
+    }()
 
     static func preview(sound: String) {
         NSSound(named: sound)?.play()
@@ -25,6 +38,7 @@ enum Notifier {
             NSSound(named: soundName)?.play()
         }
         guard showBanner else { return }
+        requestAuthorizationIfNeeded()
         let content = UNMutableNotificationContent()
         content.title = "Claude is ready"
         content.body = sessionTitle

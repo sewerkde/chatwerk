@@ -113,7 +113,9 @@ enum TerminalLauncher {
         if let cwd = session.cwd {
             args.append("--working-directory=\(cwd)")
         }
-        args.append(contentsOf: ["-e", command])
+        // Ghostty's -e execs its arguments directly (no shell), so the
+        // compound `cd … && claude …` command needs an explicit shell.
+        args.append(contentsOf: ["-e", "/bin/zsh", "-lc", command])
         proc.arguments = args
         do {
             try proc.run()

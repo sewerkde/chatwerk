@@ -55,10 +55,10 @@ final class Indexer {
                 guard JSONL.lineHasPrefix(line, anyOf: ["{\"parentUuid\"", "{\"type\":\"user\"", "{\"type\":\"assistant\""]) else { continue }
                 guard let obj = JSONL.parseLine(line) else { continue }
                 guard let type = obj["type"] as? String, type == "user" || type == "assistant" else { continue }
-                guard (obj["isSidechain"] as? Bool) != true else { continue }
                 guard let message = obj["message"] as? [String: Any] else { continue }
 
                 // Token usage aggregation (assistant messages carry `usage`).
+                // Runs BEFORE the sidechain skip: subagent turns bill too.
                 if type == "assistant",
                    let usage = message["usage"] as? [String: Any] {
                     let id = (message["id"] as? String) ?? UUID().uuidString
@@ -87,6 +87,9 @@ final class Indexer {
                     }
                 }
 
+                // Sidechain (subagent) text stays out of the FTS index —
+                // only the main conversation should be searchable.
+                guard (obj["isSidechain"] as? Bool) != true else { continue }
                 guard let text = JSONL.messageText(message) else { continue }
                 if type == "user", JSONL.isNoiseText(text) { continue }
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
