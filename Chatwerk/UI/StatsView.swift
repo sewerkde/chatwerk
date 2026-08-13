@@ -43,7 +43,7 @@ struct StatsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(session.displayTitle).lineLimit(1)
-                                    Text("\(session.projectName) · \(session.modifiedAt.formatted(.relative(presentation: .named)))")
+                                    Text("\(session.projectName) · \(session.modifiedAt.relativeString)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

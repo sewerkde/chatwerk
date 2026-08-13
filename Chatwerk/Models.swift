@@ -178,8 +178,28 @@ extension Color {
     }
 }
 
+// Formatters are expensive to create; list rows render them constantly.
+private let sharedByteFormatter: ByteCountFormatter = {
+    let f = ByteCountFormatter()
+    f.countStyle = .file
+    return f
+}()
+
+private let sharedRelativeFormatter: RelativeDateTimeFormatter = {
+    let f = RelativeDateTimeFormatter()
+    f.unitsStyle = .full
+    f.dateTimeStyle = .named
+    return f
+}()
+
 extension Int64 {
     var byteString: String {
-        ByteCountFormatter.string(fromByteCount: self, countStyle: .file)
+        sharedByteFormatter.string(fromByteCount: self)
+    }
+}
+
+extension Date {
+    var relativeString: String {
+        sharedRelativeFormatter.localizedString(for: self, relativeTo: Date())
     }
 }

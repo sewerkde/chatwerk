@@ -168,7 +168,7 @@ private struct QuickSearchRow: View {
                         Image(systemName: "star.fill").foregroundStyle(.yellow).imageScale(.small)
                     }
                     Spacer()
-                    Text(session.modifiedAt.formatted(.relative(presentation: .named)))
+                    Text(session.modifiedAt.relativeString)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }

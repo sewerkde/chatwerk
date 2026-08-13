@@ -265,19 +265,26 @@ struct SessionListView: View {
     }
 
     /// Time buckets so scanning by memory ("it was last week…") works.
+    /// Boundary dates are computed once; per-session work is plain comparisons
+    /// (Calendar component math per row made every render noticeably slow).
     private var groupedSessions: [(label: String, items: [SessionInfo])] {
         let cal = Calendar.current
         let now = Date()
+        let startOfToday = cal.startOfDay(for: now)
+        let startOfYesterday = cal.date(byAdding: .day, value: -1, to: startOfToday) ?? startOfToday
+        let startOfWeek = cal.dateInterval(of: .weekOfYear, for: now)?.start ?? startOfToday
+        let startOfMonth = cal.dateInterval(of: .month, for: now)?.start ?? startOfToday
+
         var buckets: [(label: String, items: [SessionInfo])] = [
             ("Today", []), ("Yesterday", []), ("This Week", []), ("This Month", []), ("Older", []),
         ]
         for s in state.visibleSessions {
             let d = s.modifiedAt
             let idx: Int
-            if cal.isDateInToday(d) { idx = 0 }
-            else if cal.isDateInYesterday(d) { idx = 1 }
-            else if cal.isDate(d, equalTo: now, toGranularity: .weekOfYear) { idx = 2 }
-            else if cal.isDate(d, equalTo: now, toGranularity: .month) { idx = 3 }
+            if d >= startOfToday { idx = 0 }
+            else if d >= startOfYesterday { idx = 1 }
+            else if d >= startOfWeek { idx = 2 }
+            else if d >= startOfMonth { idx = 3 }
             else { idx = 4 }
             buckets[idx].items.append(s)
         }
@@ -343,7 +350,7 @@ struct SessionRowView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
                     .background(.quaternary, in: Capsule())
-                Text(session.modifiedAt.formatted(.relative(presentation: .named)))
+                Text(session.modifiedAt.relativeString)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(session.size.byteString)
@@ -387,7 +394,9 @@ struct SessionRowView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { state.open(session) }
+        // simultaneousGesture: a plain onTapGesture(count: 2) makes every single
+        // click wait for double-click disambiguation, which lags row selection.
+        .simultaneousGesture(TapGesture(count: 2).onEnded { state.open(session) })
         .contextMenu {
             Button("Continue in \(state.terminalKind.rawValue)") { state.open(session) }
             Button("Copy Resume Command") { state.copyCommand(session) }
