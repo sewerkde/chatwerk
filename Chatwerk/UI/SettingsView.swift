@@ -5,11 +5,19 @@ struct SettingsView: View {
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") private var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
+    @AppStorage("openInApp") private var openInAppDefault: Bool = true
+    @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
+    @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
 
     var body: some View {
         Form {
             Section {
-                Picker("Open sessions in", selection: $terminalKindRaw) {
+                Picker("Double-click continues", selection: $openInAppDefault) {
+                    Text("Inside Chatwerk").tag(true)
+                    Text("In the terminal app below").tag(false)
+                }
+                .pickerStyle(.menu)
+                Picker("Terminal app", selection: $terminalKindRaw) {
                     ForEach(TerminalKind.allCases) { kind in
                         Text(kind.rawValue + (kind.isInstalled ? "" : " — not installed"))
                             .tag(kind.rawValue)
@@ -17,6 +25,18 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
                 Text("Warp cannot run commands via automation — Chatwerk opens a tab in the project folder and puts the resume command on your clipboard.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle("Alert when Claude finishes responding", isOn: $notifyWhenReady)
+                Toggle("Also show a notification banner", isOn: $notifyWithBanner)
+                    .disabled(!notifyWhenReady)
+                    .onChange(of: notifyWithBanner) { _, on in
+                        if on { Notifier.requestAuthorizationIfNeeded() }
+                    }
+                Text("Plays a sound (and optionally a banner) when a running session becomes idle again — so you notice Claude is waiting for you.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

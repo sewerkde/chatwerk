@@ -26,6 +26,12 @@ final class AppState: ObservableObject {
     @AppStorage("terminalKind") var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") var showMenuBarExtra: Bool = true
+    /// true → double-click/Enter continues the session inside Chatwerk;
+    /// false → hands off to the external terminal app.
+    @AppStorage("openInApp") var openInAppDefault: Bool = true
+    /// Alert when a running session finishes responding (busy → idle).
+    @AppStorage("notifyWhenReady") var notifyWhenReady: Bool = true
+    @AppStorage("notifyWithBanner") var notifyWithBanner: Bool = true
 
     var terminalKind: TerminalKind {
         TerminalKind(rawValue: terminalKindRaw) ?? .terminal
@@ -42,6 +48,9 @@ final class AppState: ObservableObject {
         tags = db.allTags()
         refreshLive()
         startBackgroundWork()
+        if notifyWhenReady, notifyWithBanner {
+            Notifier.requestAuthorizationIfNeeded()
+        }
     }
 
     // MARK: - Visible list
@@ -158,10 +167,30 @@ final class AppState: ObservableObject {
         if !searchText.isEmpty { performSearch() }
     }
 
+    /// Last seen status per live session ("busy", "idle", …) for ready-alerts.
+    private var lastLiveStatus: [String: String] = [:]
+
     private func refreshLive() {
-        let ids = Set(LiveSessions.current().keys)
+        let live = LiveSessions.current()
+        let ids = Set(live.keys)
         if ids != liveIds { liveIds = ids }
         applyLiveBadges()
+
+        // Alert when a session we've previously seen busy becomes idle again:
+        // Claude finished responding and is waiting for the user.
+        if notifyWhenReady {
+            for (sessionId, info) in live {
+                let status = info.status ?? "unknown"
+                if let previous = lastLiveStatus[sessionId],
+                   previous != "idle", status == "idle" {
+                    let title = sessions.first { $0.uuid == sessionId }?.displayTitle ?? "Claude Code session"
+                    Notifier.claudeIsReady(sessionTitle: title,
+                                           playSound: true,
+                                           showBanner: notifyWithBanner)
+                }
+            }
+        }
+        lastLiveStatus = live.mapValues { $0.status ?? "unknown" }
     }
 
     private func applyLiveBadges() {
@@ -262,6 +291,15 @@ final class AppState: ObservableObject {
 
     func copyCommand(_ session: SessionInfo) {
         TerminalLauncher.copyToClipboard(session.resumeCommand)
+    }
+
+    /// Shell command used by the in-app terminal (honors the claudeCommand setting).
+    func shellCommand(for session: SessionInfo) -> String {
+        var command = session.resumeCommand
+        if claudeCommand != "claude" {
+            command = command.replacingOccurrences(of: "claude --resume", with: "\(claudeCommand) --resume")
+        }
+        return command
     }
 
     func updateMeta(_ session: SessionInfo, customTitle: String?, note: String?, favorite: Bool) {

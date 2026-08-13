@@ -3,6 +3,7 @@ import AppKit
 
 struct DetailView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.openWindow) private var openWindow
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
 
@@ -53,6 +54,13 @@ struct DetailView: View {
         }
         .toolbar {
             ToolbarItemGroup {
+                Button {
+                    openWindow(id: "terminal", value: current.id)
+                } label: {
+                    Label("Continue Here", systemImage: "terminal")
+                }
+                .help("Continue this session inside Chatwerk")
+
                 Button {
                     state.open(current)
                 } label: {
@@ -241,12 +249,21 @@ struct DetailView: View {
                         .lineLimit(6)
                         .textSelection(.enabled)
                 }
-                Button {
-                    state.open(current)
-                } label: {
-                    Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                HStack(spacing: 8) {
+                    Button {
+                        openWindow(id: "terminal", value: current.id)
+                    } label: {
+                        Label("Continue here", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    Button {
+                        state.open(current)
+                    } label: {
+                        Label("in \(state.terminalKind.rawValue)", systemImage: "arrow.up.forward.app")
+                    }
+                    .controlSize(.small)
                 }
-                .controlSize(.small)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

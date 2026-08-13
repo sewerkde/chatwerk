@@ -12,6 +12,11 @@ struct ChatwerkApp: App {
                 .frame(minWidth: 980, minHeight: 620)
         }
 
+        WindowGroup("Session", id: "terminal", for: String.self) { $sessionId in
+            SessionTerminalWindow(sessionId: sessionId)
+                .environmentObject(state)
+        }
+
         Settings {
             SettingsView()
                 .environmentObject(state)

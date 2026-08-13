@@ -261,8 +261,17 @@ struct SessionListView: View {
 
 struct SessionRowView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.openWindow) private var openWindow
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
+
+    private func continueDefault() {
+        if state.openInAppDefault {
+            openWindow(id: "terminal", value: session.id)
+        } else {
+            state.open(session)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -331,8 +340,9 @@ struct SessionRowView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { state.open(session) }
+        .onTapGesture(count: 2) { continueDefault() }
         .contextMenu {
+            Button("Continue in Chatwerk") { openWindow(id: "terminal", value: session.id) }
             Button("Open in \(state.terminalKind.rawValue)") { state.open(session) }
             Button("Copy Resume Command") { state.copyCommand(session) }
             Divider()
