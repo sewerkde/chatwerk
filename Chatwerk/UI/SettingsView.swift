@@ -26,7 +26,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                Text("Warp cannot run commands via automation — Chatwerk opens a tab in the project folder and puts the resume command on your clipboard.")
+                Text("Warp is driven via a Launch Configuration, so the resume command runs automatically (and is also copied to your clipboard as a fallback).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
