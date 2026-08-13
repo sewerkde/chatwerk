@@ -41,16 +41,30 @@ enum TranscriptLoader {
         return f
     }()
 
-    static func load(path: String, maxEntries: Int = 500) -> TranscriptPage {
+    /// Reads only the last `tailBytes` of huge transcripts so the viewer opens
+    /// instantly, and cooperates with Task cancellation so rapid clicking
+    /// through sessions doesn't stack full-file reads.
+    static func load(path: String, maxEntries: Int = 500, tailBytes: Int64 = 8 * 1024 * 1024) -> TranscriptPage {
         var ring: [TranscriptEntry] = []
         ring.reserveCapacity(maxEntries + 64)
         var total = 0
         var nextId = 0
-        var offset: UInt64 = 0
         let chunkSize = 4 * 1024 * 1024
 
+        let size = ((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? Int64) ?? 0
+        var offset: UInt64 = 0
+        var skippedHead = false
+        if size > tailBytes {
+            offset = UInt64(size - tailBytes)
+            skippedHead = true
+        }
+        var firstRead = true
+
         while true {
-            guard let chunk = JSONL.readLines(path: path, offset: offset, length: chunkSize) else { break }
+            if Task.isCancelled { break }
+            guard let chunk = JSONL.readLines(path: path, offset: offset, length: chunkSize,
+                                              dropFirstPartial: firstRead && skippedHead) else { break }
+            firstRead = false
             for line in chunk.lines {
                 guard JSONL.lineHasPrefix(line, anyOf: ["{\"parentUuid\"", "{\"type\":\"user\"", "{\"type\":\"assistant\""]) else { continue }
                 guard let obj = JSONL.parseLine(line) else { continue }
@@ -72,7 +86,7 @@ enum TranscriptLoader {
             offset = chunk.nextOffset
         }
 
-        let truncated = ring.count < total
+        let truncated = skippedHead || ring.count < total
         if ring.count > maxEntries {
             ring.removeFirst(ring.count - maxEntries)
         }
@@ -139,7 +153,7 @@ enum TranscriptLoader {
         md += "- Last activity: \(session.modifiedAt.formatted())\n"
         md += "- Resume: `\(session.resumeCommand)`\n\n---\n\n"
         if page.truncatedHead {
-            md += "> Note: only the last \(page.entries.count) of \(page.totalEntries) entries are included.\n\n"
+            md += "> Note: only the last \(page.entries.count) entries are included.\n\n"
         }
         for e in page.entries {
             switch e.kind {

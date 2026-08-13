@@ -159,8 +159,16 @@ final class AppState: ObservableObject {
             let loaded = Self.deduped(database.loadAllSessions())
             await MainActor.run { [weak self] in
                 guard let self else { return }
-                self.sessions = loaded
-                self.applyLiveBadges()
+                // Stamp transient state before comparing, so an unchanged scan
+                // publishes nothing and the UI isn't churned every poll.
+                var stamped = loaded
+                for i in stamped.indices {
+                    stamped[i].isLive = self.liveIds.contains(stamped[i].uuid)
+                    stamped[i].liveStatus = self.liveStatusById[stamped[i].uuid]
+                }
+                if stamped != self.sessions {
+                    self.sessions = stamped
+                }
             }
             if fullIndex {
                 await self?.runIndexer()

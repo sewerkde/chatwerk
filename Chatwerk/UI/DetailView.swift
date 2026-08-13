@@ -46,12 +46,21 @@ struct DetailView: View {
         }
         .task(id: session.id) {
             loadingTranscript = true
+            defer { loadingTranscript = false }
             let path = session.path
-            let page = await Task.detached(priority: .userInitiated) {
+            // Detached so parsing never touches the main thread; cancellation is
+            // forwarded so switching sessions kills the previous read immediately.
+            let job = Task.detached(priority: .userInitiated) {
                 TranscriptLoader.load(path: path)
-            }.value
-            transcript = page
-            loadingTranscript = false
+            }
+            let page = await withTaskCancellationHandler {
+                await job.value
+            } onCancel: {
+                job.cancel()
+            }
+            if !Task.isCancelled {
+                transcript = page
+            }
         }
         .toolbar {
             ToolbarItemGroup {
@@ -269,7 +278,7 @@ struct DetailView: View {
             Spacer()
             if let t = transcript {
                 Text(t.truncatedHead
-                     ? "last \(t.entries.count) of \(t.totalEntries) entries"
+                     ? "last \(t.entries.count) entries"
                      : "\(t.totalEntries) entries")
                     .font(.caption)
                     .foregroundStyle(.secondary)
