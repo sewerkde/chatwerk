@@ -69,8 +69,8 @@ A session is more than its transcript: Claude Code also keeps file-edit backups,
 **Warp support?**
 Warp can't be scripted with AppleScript, so Chatwerk drives it with a [Launch Configuration](https://docs.warp.dev/features/sessions/launch-configurations): the resume command runs automatically in the right directory. The command is also copied to your clipboard as a fallback for older Warp versions.
 
-**Why does macOS ask for folder permissions when I continue a session inside Chatwerk?**
-When a session runs in Chatwerk's embedded terminal, Claude Code is a child process of Chatwerk — so macOS attributes its file access (Desktop, Documents, Downloads, …) to Chatwerk and asks once per folder category, exactly like it once did for your terminal app. Nothing leaves your machine. Grant them once, or give Chatwerk **Full Disk Access** in System Settings → Privacy & Security to skip all prompts.
+**What permissions does Chatwerk need?**
+Just one, and only once: permission to send your terminal app the resume command (macOS "Automation" prompt on first use). Chatwerk reads `~/.claude` directly — that requires no permission — and never touches anything else.
 
 ## Disclaimer
 

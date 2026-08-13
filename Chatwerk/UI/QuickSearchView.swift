@@ -135,7 +135,7 @@ struct QuickSearchView: View {
         guard results.indices.contains(selectedIndex) else { return }
         let session = results[selectedIndex]
         dismiss()
-        state.continueDefault(session)
+        state.open(session)
     }
 
     private func revealSelected() {

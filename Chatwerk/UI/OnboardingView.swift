@@ -7,7 +7,6 @@ struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("didOnboard") private var didOnboard = false
-    @AppStorage("openInApp") private var openInApp = false
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
 
     private let installed = TerminalKind.installed
@@ -62,21 +61,6 @@ struct OnboardingView: View {
 
                 Divider().padding(.vertical, 2)
 
-                Text("How should sessions continue?")
-                    .font(.headline)
-                choiceRow(selected: !openInApp,
-                          title: "In my terminal app",
-                          subtitle: "Recommended — no extra macOS permission prompts.") {
-                    openInApp = false
-                }
-                choiceRow(selected: openInApp,
-                          title: "Inside Chatwerk",
-                          subtitle: "Embedded terminal window. macOS will ask once per folder (Desktop, Documents, …) because Claude runs inside Chatwerk.") {
-                    openInApp = true
-                }
-
-                Divider().padding(.vertical, 2)
-
                 Toggle("Play a sound when Claude finishes responding", isOn: $notifyWhenReady)
 
                 Text("You can change all of this anytime in Settings (⌘,) or from the menu bar icon.")
@@ -107,27 +91,4 @@ struct OnboardingView: View {
         }
     }
 
-    private func choiceRow(selected: Bool, title: String, subtitle: String,
-                           action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(alignment: .top) {
-                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(selected ? Color.accentColor : .secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-            }
-            .padding(10)
-            .background(
-                selected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 }

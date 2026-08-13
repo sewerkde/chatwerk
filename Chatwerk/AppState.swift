@@ -32,9 +32,6 @@ final class AppState: ObservableObject {
     @AppStorage("terminalKind") var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") var showMenuBarExtra: Bool = true
-    /// true → double-click/Enter continues the session inside Chatwerk;
-    /// false → hands off to the external terminal app.
-    @AppStorage("openInApp") var openInAppDefault: Bool = false
     /// Alert when a running session finishes responding (busy → idle).
     @AppStorage("notifyWhenReady") var notifyWhenReady: Bool = true
     @AppStorage("notifyWithBanner") var notifyWithBanner: Bool = true
@@ -321,28 +318,6 @@ final class AppState: ObservableObject {
         TerminalLauncher.copyToClipboard(session.resumeCommand)
     }
 
-    /// Shell command used by the in-app terminal (honors the claudeCommand setting).
-    func shellCommand(for session: SessionInfo) -> String {
-        var command = session.resumeCommand
-        if claudeCommand != "claude" {
-            command = command.replacingOccurrences(of: "claude --resume", with: "\(claudeCommand) --resume")
-        }
-        return command
-    }
-
-    /// Continue a session in an embedded terminal window inside Chatwerk.
-    func continueInApp(_ session: SessionInfo) {
-        TerminalWindowManager.shared.open(session: session, command: shellCommand(for: session))
-    }
-
-    /// The user's chosen default: in-app terminal or external terminal app.
-    func continueDefault(_ session: SessionInfo) {
-        if openInAppDefault {
-            continueInApp(session)
-        } else {
-            open(session)
-        }
-    }
 
     func updateMeta(_ session: SessionInfo, customTitle: String?, note: String?, favorite: Bool) {
         let title = customTitle?.isEmpty == true ? nil : customTitle

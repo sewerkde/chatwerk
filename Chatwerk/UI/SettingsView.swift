@@ -5,7 +5,6 @@ struct SettingsView: View {
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("claudeCommand") private var claudeCommand: String = "claude"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
-    @AppStorage("openInApp") private var openInAppDefault: Bool = false
     @AppStorage("notifyWhenReady") private var notifyWhenReady: Bool = true
     @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
     @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true
@@ -14,11 +13,6 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Double-click continues", selection: $openInAppDefault) {
-                    Text("Inside Chatwerk").tag(true)
-                    Text("In the terminal app below").tag(false)
-                }
-                .pickerStyle(.menu)
                 Picker("Terminal app", selection: $terminalKindRaw) {
                     ForEach(TerminalKind.allCases) { kind in
                         Text(kind.rawValue + (kind.isInstalled ? "" : " — not installed"))

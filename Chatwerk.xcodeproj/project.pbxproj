@@ -15,14 +15,12 @@
 		2C608252DE2A36A3C6851185 /* ClaudePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CBD15C6773BA3D2404F043 /* ClaudePaths.swift */; };
 		2EF15C25EB976CA47EB39F5E /* Indexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F339B078D5522A165D1894B /* Indexer.swift */; };
 		35A9FE6EA6EAA6E80184A918 /* SessionScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E5F2BD67DFDF96017137C7 /* SessionScanner.swift */; };
-		3DF8F1AEBAB0F496F022E517 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 66D4557B217A5CFAA98064CD /* SwiftTerm */; };
 		3FD9F1E6976B026310C323A8 /* Notifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85F976806740B7492D89E61 /* Notifier.swift */; };
 		42258F8BD05601F9227F01DC /* JSONL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F3C779F4CD666D54AB86FE /* JSONL.swift */; };
 		66F8A5EB4163FBC53B5D85A3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC99E358A4ABA2134212326A /* SettingsView.swift */; };
 		807AA1C39021D906258C2590 /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABDC980E088DE2D4C63B45F5 /* Cleaner.swift */; };
 		829C582846F1E928F144C89B /* ChatwerkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4620750A0F7337D956328D /* ChatwerkApp.swift */; };
 		8859ED27D7C7FC77D65063CB /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F3BCE37DE5CE9AFD45D066 /* StatsView.swift */; };
-		891040FC0C88CAD7775A62EE /* InAppTerminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A29D540ECB3B3C4DE89AA5 /* InAppTerminal.swift */; };
 		A8F1B9C9617E6C2FF4ECBE03 /* QuickSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A57CE3836B558F414A5BA0C /* QuickSearchView.swift */; };
 		B88865185176A5B9DACB8EAF /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66095E58757BBBEA3FDF7D36 /* OnboardingView.swift */; };
 		BBE8B60C0754A7C10687D3A4 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = D749793BDD65600D7942E3E5 /* Database.swift */; };
@@ -51,21 +49,9 @@
 		D749793BDD65600D7942E3E5 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		DC99E358A4ABA2134212326A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		DE4620750A0F7337D956328D /* ChatwerkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatwerkApp.swift; sourceTree = "<group>"; };
-		E3A29D540ECB3B3C4DE89AA5 /* InAppTerminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppTerminal.swift; sourceTree = "<group>"; };
 		E85F976806740B7492D89E61 /* Notifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notifier.swift; sourceTree = "<group>"; };
 		F7980E61D6A723A5C025ED0A /* Chatwerk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatwerk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		10C4F95DBCFC25BF02BEF4D9 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				3DF8F1AEBAB0F496F022E517 /* SwiftTerm in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1040C2987E142E54B6FA2761 /* Products */ = {
@@ -105,7 +91,6 @@
 			isa = PBXGroup;
 			children = (
 				7657A00124F924E8ADF4EDA6 /* DetailView.swift */,
-				E3A29D540ECB3B3C4DE89AA5 /* InAppTerminal.swift */,
 				174569ACDD5C99314F721A07 /* MainView.swift */,
 				66095E58757BBBEA3FDF7D36 /* OnboardingView.swift */,
 				2A57CE3836B558F414A5BA0C /* QuickSearchView.swift */,
@@ -137,7 +122,6 @@
 			buildPhases = (
 				1B88EFBB219251AD4A441B27 /* Sources */,
 				AF99785C9858AB8376919EBD /* Resources */,
-				10C4F95DBCFC25BF02BEF4D9 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -145,7 +129,6 @@
 			);
 			name = Chatwerk;
 			packageProductDependencies = (
-				66D4557B217A5CFAA98064CD /* SwiftTerm */,
 			);
 			productName = Chatwerk;
 			productReference = F7980E61D6A723A5C025ED0A /* Chatwerk.app */;
@@ -174,9 +157,6 @@
 			);
 			mainGroup = 1F930B09B2176FBCF194B05B;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				55EE7493282C51D32A8994DA /* XCRemoteSwiftPackageReference "SwiftTerm" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1040C2987E142E54B6FA2761 /* Products */;
 			projectDirPath = "";
@@ -209,7 +189,6 @@
 				807AA1C39021D906258C2590 /* Cleaner.swift in Sources */,
 				BBE8B60C0754A7C10687D3A4 /* Database.swift in Sources */,
 				257426D2B711C9EA6C20D7CE /* DetailView.swift in Sources */,
-				891040FC0C88CAD7775A62EE /* InAppTerminal.swift in Sources */,
 				2EF15C25EB976CA47EB39F5E /* Indexer.swift in Sources */,
 				42258F8BD05601F9227F01DC /* JSONL.swift in Sources */,
 				DDDB03F1747E551B00B2EA55 /* LiveSessions.swift in Sources */,
@@ -242,14 +221,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chatwerk only sends your terminal app one command: resuming the Claude Code session you clicked.";
-				INFOPLIST_KEY_NSDesktopFolderUsageDescription = "Chatwerk itself doesn't need your Desktop — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac.";
-				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Chatwerk itself doesn't need your Documents — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac.";
-				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Chatwerk itself doesn't need your Downloads — the Claude Code session running inside Chatwerk is reaching files there. Nothing leaves your Mac.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Sewerk";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSNetworkVolumesUsageDescription = "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
-				INFOPLIST_KEY_NSRemovableVolumesUsageDescription = "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -394,14 +368,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chatwerk only sends your terminal app one command: resuming the Claude Code session you clicked.";
-				INFOPLIST_KEY_NSDesktopFolderUsageDescription = "Chatwerk itself doesn't need your Desktop — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac.";
-				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Chatwerk itself doesn't need your Documents — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac.";
-				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Chatwerk itself doesn't need your Downloads — the Claude Code session running inside Chatwerk is reaching files there. Nothing leaves your Mac.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Sewerk";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSNetworkVolumesUsageDescription = "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
-				INFOPLIST_KEY_NSRemovableVolumesUsageDescription = "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -436,25 +405,6 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		55EE7493282C51D32A8994DA /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		66D4557B217A5CFAA98064CD /* SwiftTerm */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 55EE7493282C51D32A8994DA /* XCRemoteSwiftPackageReference "SwiftTerm" */;
-			productName = SwiftTerm;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D057EBB4F2069A44B24AEB49 /* Project object */;
 }

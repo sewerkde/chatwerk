@@ -376,10 +376,9 @@ struct SessionRowView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { state.continueDefault(session) }
+        .onTapGesture(count: 2) { state.open(session) }
         .contextMenu {
-            Button("Continue in Chatwerk") { state.continueInApp(session) }
-            Button("Open in \(state.terminalKind.rawValue)") { state.open(session) }
+            Button("Continue in \(state.terminalKind.rawValue)") { state.open(session) }
             Button("Copy Resume Command") { state.copyCommand(session) }
             Divider()
             Button(session.favorite ? "Remove from Favorites" : "Add to Favorites") {

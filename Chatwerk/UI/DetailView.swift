@@ -54,18 +54,11 @@ struct DetailView: View {
         .toolbar {
             ToolbarItemGroup {
                 Button {
-                    state.continueInApp(current)
-                } label: {
-                    Label("Continue Here", systemImage: "play.fill")
-                }
-                .help("Continue this session inside Chatwerk")
-
-                Button {
                     state.open(current)
                 } label: {
-                    Label("Open in \(state.terminalKind.rawValue)", systemImage: "arrow.up.forward.app")
+                    Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
                 }
-                .help("Open this session in your external terminal app")
+                .help("Continue this session in your terminal")
 
                 Button {
                     state.copyCommand(current)
@@ -252,21 +245,13 @@ struct DetailView: View {
                         .lineLimit(6)
                         .textSelection(.enabled)
                 }
-                HStack(spacing: 8) {
-                    Button {
-                        state.continueInApp(current)
-                    } label: {
-                        Label("Continue here", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    Button {
-                        state.open(current)
-                    } label: {
-                        Label("in \(state.terminalKind.rawValue)", systemImage: "arrow.up.forward.app")
-                    }
-                    .controlSize(.small)
+                Button {
+                    state.open(current)
+                } label: {
+                    Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

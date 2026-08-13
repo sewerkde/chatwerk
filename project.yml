@@ -4,18 +4,12 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
-packages:
-  SwiftTerm:
-    url: https://github.com/migueldeicaza/SwiftTerm
-    from: 1.2.0
 targets:
   Chatwerk:
     type: application
     platform: macOS
     sources:
       - Chatwerk
-    dependencies:
-      - package: SwiftTerm
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.sewerk.chatwerk
@@ -32,10 +26,5 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Sewerk"
         INFOPLIST_KEY_NSAppleEventsUsageDescription: "Chatwerk only sends your terminal app one command: resuming the Claude Code session you clicked."
-        INFOPLIST_KEY_NSDesktopFolderUsageDescription: "Chatwerk itself doesn't need your Desktop — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac."
-        INFOPLIST_KEY_NSDocumentsFolderUsageDescription: "Chatwerk itself doesn't need your Documents — the Claude Code session running inside Chatwerk is reaching your project files there. Nothing leaves your Mac."
-        INFOPLIST_KEY_NSDownloadsFolderUsageDescription: "Chatwerk itself doesn't need your Downloads — the Claude Code session running inside Chatwerk is reaching files there. Nothing leaves your Mac."
-        INFOPLIST_KEY_NSRemovableVolumesUsageDescription: "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself."
-        INFOPLIST_KEY_NSNetworkVolumesUsageDescription: "Requested by the Claude Code session running inside Chatwerk, not by Chatwerk itself."
         INFOPLIST_KEY_NSMainStoryboardFile: ""
         INFOPLIST_KEY_NSPrincipalClass: NSApplication
