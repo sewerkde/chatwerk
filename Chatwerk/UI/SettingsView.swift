@@ -9,9 +9,39 @@ struct SettingsView: View {
     @AppStorage("notifyWithBanner") private var notifyWithBanner: Bool = true
     @AppStorage("notifyWithSound") private var notifyWithSound: Bool = true
     @AppStorage("readySound") private var readySound: String = "Glass"
+    @AppStorage("appearance") private var appearanceRaw: String = "system"
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
 
     var body: some View {
         Form {
+            Section {
+                Picker("Appearance", selection: $appearanceRaw) {
+                    Text("System").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+                .pickerStyle(.segmented)
+                LabeledContent("Accent color") {
+                    HStack(spacing: 8) {
+                        ForEach(Theme.accents, id: \.name) { item in
+                            let color = Color(hex: item.hex) ?? .orange
+                            Circle()
+                                .fill(color)
+                                .frame(width: 20, height: 20)
+                                .overlay {
+                                    if accentName == item.name {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                                .onTapGesture { accentName = item.name }
+                                .help(item.name)
+                        }
+                    }
+                }
+            }
+
             Section {
                 Picker("Terminal app", selection: $terminalKindRaw) {
                     ForEach(TerminalKind.allCases) { kind in

@@ -151,6 +151,7 @@ struct QuickSearchView: View {
 
 private struct QuickSearchRow: View {
     let session: SessionInfo
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
     let isSelected: Bool
 
     var body: some View {
@@ -186,7 +187,7 @@ private struct QuickSearchRow: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
-        .background(isSelected ? Color.accentColor.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .background(isSelected ? Theme.accent(accentName).opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 6))
     }
 }
 

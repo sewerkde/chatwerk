@@ -8,6 +8,8 @@ struct OnboardingView: View {
     @AppStorage("terminalKind") private var terminalKindRaw: String = TerminalKind.terminal.rawValue
     @AppStorage("didOnboard") private var didOnboard = false
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
+    private var accent: Color { Theme.accent(accentName) }
 
     private let installed = TerminalKind.installed
 
@@ -39,7 +41,7 @@ struct OnboardingView: View {
                     } label: {
                         HStack {
                             Image(systemName: terminalKindRaw == kind.rawValue ? "largecircle.fill.circle" : "circle")
-                                .foregroundStyle(terminalKindRaw == kind.rawValue ? Color.accentColor : .secondary)
+                                .foregroundStyle(terminalKindRaw == kind.rawValue ? accent : .secondary)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(kind.rawValue)
                                 if let caveat = kind.caveat {
@@ -52,7 +54,7 @@ struct OnboardingView: View {
                         }
                         .padding(10)
                         .background(
-                            terminalKindRaw == kind.rawValue ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05),
+                            terminalKindRaw == kind.rawValue ? accent.opacity(0.1) : Color.secondary.opacity(0.05),
                             in: RoundedRectangle(cornerRadius: 8)
                         )
                     }

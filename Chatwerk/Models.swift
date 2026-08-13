@@ -123,6 +123,30 @@ func shellQuote(_ s: String) -> String {
     "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
 }
 
+/// User-selectable appearance + accent themes.
+enum Theme {
+    static let accents: [(name: String, hex: String)] = [
+        ("Sewerk Orange", "#FF6A00"),
+        ("Purple", "#7B61FF"),
+        ("Blue", "#339AF0"),
+        ("Green", "#40C057"),
+        ("Pink", "#F06595"),
+        ("Teal", "#20C997"),
+    ]
+
+    static func accent(_ name: String) -> Color {
+        Color(hex: accents.first { $0.name == name }?.hex ?? "#FF6A00") ?? .orange
+    }
+
+    static func scheme(_ raw: String) -> ColorScheme? {
+        switch raw {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil    // follow system
+        }
+    }
+}
+
 extension Color {
     init?(hex: String) {
         var h = hex.trimmingCharacters(in: .whitespacesAndNewlines)

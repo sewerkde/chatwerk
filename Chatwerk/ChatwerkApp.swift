@@ -4,17 +4,23 @@ import SwiftUI
 struct ChatwerkApp: App {
     @StateObject private var state = AppState()
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
+    @AppStorage("appearance") private var appearanceRaw: String = "system"
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
 
     var body: some Scene {
         WindowGroup(id: "main") {
             MainView()
                 .environmentObject(state)
                 .frame(minWidth: 980, minHeight: 620)
+                .preferredColorScheme(Theme.scheme(appearanceRaw))
+                .tint(Theme.accent(accentName))
         }
 
         Settings {
             SettingsView()
                 .environmentObject(state)
+                .preferredColorScheme(Theme.scheme(appearanceRaw))
+                .tint(Theme.accent(accentName))
         }
 
         MenuBarExtra("Chatwerk", image: "MenuBarIcon", isInserted: $showMenuBarExtra) {

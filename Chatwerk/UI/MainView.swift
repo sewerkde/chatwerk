@@ -185,20 +185,25 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 6) {
-                Image("SewerkMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("Chatwerk")
-                    .font(.caption.bold())
-                Text("by Sewerk")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: 9) {
+                    Image("SewerkMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Chatwerk")
+                            .font(.caption.weight(.semibold))
+                        Text("by Sewerk · v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1")")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
             .background(.bar)
         }
     }

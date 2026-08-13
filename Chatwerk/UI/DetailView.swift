@@ -5,6 +5,8 @@ struct DetailView: View {
     @EnvironmentObject var state: AppState
     let session: SessionInfo
     @Binding var pendingDelete: SessionInfo?
+    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
+    private var accent: Color { Theme.accent(accentName) }
 
     @State private var customTitle: String
     @State private var note: String
@@ -233,7 +235,7 @@ struct DetailView: View {
                     .foregroundStyle(.secondary)
                 if let lastPrompt = current.lastPrompt, !lastPrompt.isEmpty {
                     HStack(alignment: .top, spacing: 6) {
-                        Text("You:").font(.callout.bold()).foregroundStyle(Color.accentColor)
+                        Text("You:").font(.callout.bold()).foregroundStyle(accent)
                         Text(lastPrompt).font(.callout).lineLimit(3).textSelection(.enabled)
                     }
                 }
@@ -255,8 +257,8 @@ struct DetailView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor.opacity(0.2)))
+            .background(accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.2)))
         }
     }
 
@@ -327,6 +329,7 @@ struct DetailView: View {
 
 struct TranscriptEntryView: View {
     let entry: TranscriptEntry
+    @AppStorage("accentName") private var accentName2: String = "Sewerk Orange"
     @State private var expanded = false
 
     var body: some View {
@@ -336,7 +339,7 @@ struct TranscriptEntryView: View {
                 HStack {
                     Text(entry.roleLabel)
                         .font(.caption.bold())
-                        .foregroundStyle(entry.kind == .user ? Color.accentColor : .secondary)
+                        .foregroundStyle(entry.kind == .user ? Theme.accent(accentName2) : .secondary)
                     if let ts = entry.timestamp {
                         Text(ts.formatted(date: .omitted, time: .shortened))
                             .font(.caption2)
@@ -349,7 +352,7 @@ struct TranscriptEntryView: View {
             }
             .padding(10)
             .background(
-                entry.kind == .user ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.06),
+                entry.kind == .user ? Theme.accent(accentName2).opacity(0.08) : Color.secondary.opacity(0.06),
                 in: RoundedRectangle(cornerRadius: 8)
             )
         case .thinking, .toolUse, .toolResult:
