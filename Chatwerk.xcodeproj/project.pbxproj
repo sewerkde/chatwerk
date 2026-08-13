@@ -11,6 +11,7 @@
 		1727E472D1D6ADD8F44216D0 /* TerminalLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7444E46249E126518B587D9 /* TerminalLauncher.swift */; };
 		18A79781F3E51714E34C8219 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD39F6941C15DF759C64B5C8 /* Models.swift */; };
 		1A7ED6AB3CC7B499C74A5774 /* TranscriptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4A73F437952F781538152E /* TranscriptLoader.swift */; };
+		205BB47B8990CEF81B571F89 /* Pricing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A4F801CE4EC1D680EEA2F5 /* Pricing.swift */; };
 		257426D2B711C9EA6C20D7CE /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7657A00124F924E8ADF4EDA6 /* DetailView.swift */; };
 		2C608252DE2A36A3C6851185 /* ClaudePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CBD15C6773BA3D2404F043 /* ClaudePaths.swift */; };
 		2EF15C25EB976CA47EB39F5E /* Indexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F339B078D5522A165D1894B /* Indexer.swift */; };
@@ -46,6 +47,7 @@
 		A7444E46249E126518B587D9 /* TerminalLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalLauncher.swift; sourceTree = "<group>"; };
 		ABDC980E088DE2D4C63B45F5 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
 		AD39F6941C15DF759C64B5C8 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B0A4F801CE4EC1D680EEA2F5 /* Pricing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pricing.swift; sourceTree = "<group>"; };
 		D749793BDD65600D7942E3E5 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		DC99E358A4ABA2134212326A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		DE4620750A0F7337D956328D /* ChatwerkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatwerkApp.swift; sourceTree = "<group>"; };
@@ -80,6 +82,7 @@
 				82F3C779F4CD666D54AB86FE /* JSONL.swift */,
 				1318BD54284B4AADB9493852 /* LiveSessions.swift */,
 				E85F976806740B7492D89E61 /* Notifier.swift */,
+				B0A4F801CE4EC1D680EEA2F5 /* Pricing.swift */,
 				36E5F2BD67DFDF96017137C7 /* SessionScanner.swift */,
 				A7444E46249E126518B587D9 /* TerminalLauncher.swift */,
 				7B4A73F437952F781538152E /* TranscriptLoader.swift */,
@@ -196,6 +199,7 @@
 				18A79781F3E51714E34C8219 /* Models.swift in Sources */,
 				3FD9F1E6976B026310C323A8 /* Notifier.swift in Sources */,
 				B88865185176A5B9DACB8EAF /* OnboardingView.swift in Sources */,
+				205BB47B8990CEF81B571F89 /* Pricing.swift in Sources */,
 				A8F1B9C9617E6C2FF4ECBE03 /* QuickSearchView.swift in Sources */,
 				35A9FE6EA6EAA6E80184A918 /* SessionScanner.swift in Sources */,
 				66F8A5EB4163FBC53B5D85A3 /* SettingsView.swift in Sources */,

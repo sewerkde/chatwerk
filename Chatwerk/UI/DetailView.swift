@@ -295,6 +295,13 @@ struct DetailView: View {
                     state.daysUntilCleanup(for: current) > 3650
                     ? "effectively never (cleanupPeriodDays: \(state.retentionDays))"
                     : "in \(max(state.daysUntilCleanup(for: current), 0)) days (cleanupPeriodDays: \(state.retentionDays))")
+            if current.inputTokens + current.outputTokens > 0 {
+                infoRow("Tokens",
+                        "in \(current.inputTokens.tokenString) · out \(current.outputTokens.tokenString) · cache \((current.cacheReadTokens + current.cacheWriteTokens).tokenString)")
+                if let cost = current.estimatedCost {
+                    infoRow("Est. cost", "\(Pricing.dollars(cost)) at list price")
+                }
+            }
             if let model = current.model {
                 infoRow("Model", model, mono: true)
             }

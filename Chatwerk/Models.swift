@@ -19,6 +19,19 @@ struct SessionInfo: Identifiable, Hashable {
     var createdAt: Date?
     var modifiedAt: Date
 
+    // aggregated token usage (filled by the indexer)
+    var inputTokens: Int64 = 0
+    var outputTokens: Int64 = 0
+    var cacheReadTokens: Int64 = 0
+    var cacheWriteTokens: Int64 = 0
+
+    /// Estimated cost in dollars, when the model's pricing is known.
+    var estimatedCost: Double? {
+        guard let model else { return nil }
+        return Pricing.cost(model: model, input: inputTokens, output: outputTokens,
+                            cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens)
+    }
+
     // user metadata (stored only in Chatwerk's own DB, never in ~/.claude)
     var customTitle: String?
     var note: String?

@@ -69,7 +69,35 @@ final class Database {
         CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(
             uuid UNINDEXED, role UNINDEXED, content, tokenize='unicode61'
         );
+        CREATE TABLE IF NOT EXISTS usage_daily (
+            day TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input INTEGER NOT NULL DEFAULT 0,
+            output INTEGER NOT NULL DEFAULT 0,
+            cache_read INTEGER NOT NULL DEFAULT 0,
+            cache_write INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, model)
+        );
         """)
+
+        // Additive columns for per-session token totals (ignore "already exists").
+        for column in ["in_tokens", "out_tokens", "cache_read_tokens", "cache_write_tokens"] {
+            try? execRaw("ALTER TABLE sessions ADD COLUMN \(column) INTEGER NOT NULL DEFAULT 0")
+        }
+
+        // Schema v2 adds usage aggregation; force one full re-index so token
+        // data is backfilled from existing transcripts.
+        var version: Int32 = 0
+        run("PRAGMA user_version") { s in version = sqlite3_column_int(s, 0) }
+        if version < 2 {
+            try execRaw("""
+            DELETE FROM fts;
+            DELETE FROM usage_daily;
+            UPDATE sessions SET indexed_offset=0, message_count=0,
+                in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0;
+            PRAGMA user_version = 2;
+            """)
+        }
     }
 
     private func execRaw(_ sql: String) throws {
@@ -240,6 +268,57 @@ final class Database {
         }
     }
 
+    // MARK: - Usage aggregation
+
+    struct UsageRow {
+        var day: String
+        var model: String
+        var input: Int64
+        var output: Int64
+        var cacheRead: Int64
+        var cacheWrite: Int64
+    }
+
+    func recordUsage(uuid: String, projectDir: String,
+                     input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64,
+                     daily: [(day: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64)]) {
+        guard input + output + cacheRead + cacheWrite > 0 else { return }
+        queue.sync {
+            run("BEGIN")
+            run("""
+            UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
+                cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?
+            WHERE uuid=? AND project_dir=?
+            """, [input, output, cacheRead, cacheWrite, uuid, projectDir])
+            for d in daily {
+                run("""
+                INSERT INTO usage_daily (day, model, input, output, cache_read, cache_write)
+                VALUES (?,?,?,?,?,?)
+                ON CONFLICT(day, model) DO UPDATE SET
+                    input=input+excluded.input, output=output+excluded.output,
+                    cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write
+                """, [d.day, d.model, d.input, d.output, d.cacheRead, d.cacheWrite])
+            }
+            run("COMMIT")
+        }
+    }
+
+    func usageRows() -> [UsageRow] {
+        queue.sync {
+            var out: [UsageRow] = []
+            run("SELECT day, model, input, output, cache_read, cache_write FROM usage_daily ORDER BY day") { s in
+                out.append(UsageRow(
+                    day: Database.text(s, 0) ?? "",
+                    model: Database.text(s, 1) ?? "",
+                    input: sqlite3_column_int64(s, 2),
+                    output: sqlite3_column_int64(s, 3),
+                    cacheRead: sqlite3_column_int64(s, 4),
+                    cacheWrite: sqlite3_column_int64(s, 5)))
+            }
+            return out
+        }
+    }
+
     // MARK: - Loading for UI
 
     func loadAllSessions() -> [SessionInfo] {
@@ -259,7 +338,8 @@ final class Database {
             run("""
             SELECT s.uuid, s.project_dir, s.path, s.cwd, s.title, s.first_prompt, s.last_prompt,
                    s.git_branch, s.model, s.message_count, s.size, s.created_at, s.modified_at,
-                   m.custom_title, m.note, m.favorite
+                   m.custom_title, m.note, m.favorite,
+                   s.in_tokens, s.out_tokens, s.cache_read_tokens, s.cache_write_tokens
             FROM sessions s LEFT JOIN meta m ON m.uuid = s.uuid
             ORDER BY s.modified_at DESC
             """) { s in
@@ -282,6 +362,10 @@ final class Database {
                 info.customTitle = Database.text(s, 13)
                 info.note = Database.text(s, 14)
                 info.favorite = sqlite3_column_int(s, 15) == 1
+                info.inputTokens = sqlite3_column_int64(s, 16)
+                info.outputTokens = sqlite3_column_int64(s, 17)
+                info.cacheReadTokens = sqlite3_column_int64(s, 18)
+                info.cacheWriteTokens = sqlite3_column_int64(s, 19)
                 info.tags = tagsByUuid[uuid] ?? []
                 out.append(info)
             }
