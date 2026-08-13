@@ -76,7 +76,8 @@ struct StatsView: View {
 
     private func cost(of row: Database.UsageRow) -> Double? {
         Pricing.cost(model: row.model, input: row.input, output: row.output,
-                     cacheRead: row.cacheRead, cacheWrite: row.cacheWrite)
+                     cacheRead: row.cacheRead, cacheWrite: row.cacheWrite,
+                     cacheWrite1h: row.cacheWrite1h)
     }
 
     // MARK: - Body
@@ -143,7 +144,7 @@ struct StatsView: View {
                         .font(.callout)
                     }
 
-                    Text("Estimates at public list prices (cache writes 1.25×, cache reads 0.1× input). Subscription plans (Pro/Max) are flat-rate — treat this as usage insight, not a bill.")
+                    Text("Estimates at public list prices (cache reads 0.1× input, cache writes 1.25× for 5m TTL / 2× for 1h TTL). Subscription plans (Pro/Max) are flat-rate — treat this as usage insight, not a bill.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
 

@@ -1,16 +1,18 @@
 import Foundation
 
 /// Estimated Claude API pricing, $ per million tokens. Longest prefix wins.
-/// Costs shown in the app are estimates: cache writes are billed at 1.25×
-/// input (5m TTL) and cache reads at 0.1× input; actual invoices can differ
-/// (introductory pricing, batch discounts, negotiated rates).
+/// Costs shown in the app are estimates: cache reads bill at 0.1× input,
+/// cache writes at 1.25× (5m TTL) or 2× (1h TTL — what Claude Code uses);
+/// actual invoices can differ (introductory pricing, batch discounts,
+/// negotiated rates).
 enum Pricing {
 
     struct Rate {
         let input: Double   // $ / MTok
         let output: Double  // $ / MTok
         var cacheRead: Double { input * 0.1 }
-        var cacheWrite: Double { input * 1.25 }
+        var cacheWrite5m: Double { input * 1.25 }
+        var cacheWrite1h: Double { input * 2 }
     }
 
     /// Ordered longest-prefix-first so specific versions match before families.
@@ -34,14 +36,18 @@ enum Pricing {
     }
 
     /// Estimated cost in dollars; nil when the model is unknown.
+    /// `cacheWrite` is the total written; `cacheWrite1h` the 1h-TTL subset,
+    /// which bills at 2× instead of 1.25×.
     static func cost(model: String, input: Int64, output: Int64,
-                     cacheRead: Int64, cacheWrite: Int64) -> Double? {
+                     cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64 = 0) -> Double? {
         guard let r = rate(for: model) else { return nil }
         let m = 1_000_000.0
+        let write5m = max(cacheWrite - cacheWrite1h, 0)
         return Double(input) / m * r.input
             + Double(output) / m * r.output
             + Double(cacheRead) / m * r.cacheRead
-            + Double(cacheWrite) / m * r.cacheWrite
+            + Double(write5m) / m * r.cacheWrite5m
+            + Double(cacheWrite1h) / m * r.cacheWrite1h
     }
 
     static func dollars(_ value: Double) -> String {

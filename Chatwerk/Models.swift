@@ -24,12 +24,14 @@ struct SessionInfo: Identifiable, Hashable {
     var outputTokens: Int64 = 0
     var cacheReadTokens: Int64 = 0
     var cacheWriteTokens: Int64 = 0
+    var cacheWrite1hTokens: Int64 = 0
 
     /// Estimated cost in dollars, when the model's pricing is known.
     var estimatedCost: Double? {
         guard let model else { return nil }
         return Pricing.cost(model: model, input: inputTokens, output: outputTokens,
-                            cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens)
+                            cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens,
+                            cacheWrite1h: cacheWrite1hTokens)
     }
 
     // user metadata (stored only in Chatwerk's own DB, never in ~/.claude)
