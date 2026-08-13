@@ -210,6 +210,7 @@ struct DetailView: View {
                                 .font(.callout.weight(.medium))
                                 .lineLimit(2)
                                 .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .textSelection(.enabled)
                         }
                     }
@@ -225,18 +226,21 @@ struct DetailView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(4)
                             .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
                             .textSelection(.enabled)
                     }
                 }
-                Button {
-                    state.open(current)
-                } label: {
-                    Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                HStack {
+                    Spacer()
+                    Button {
+                        state.open(current)
+                    } label: {
+                        Label("Continue in \(state.terminalKind.rawValue)", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .padding(.leading, 26)
-                .padding(.top, 2)
+                .padding(.top, 4)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
