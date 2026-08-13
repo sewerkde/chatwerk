@@ -433,7 +433,7 @@ struct TranscriptEntryView: View {
         switch entry.kind {
         case .user, .assistant:
             let isUser = entry.kind == .user
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(isUser ? accent : Color.secondary)
@@ -447,11 +447,12 @@ struct TranscriptEntryView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                Text(entry.text.count > 6000 ? String(entry.text.prefix(6000)) + " …" : entry.text)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                MessageBody(text: entry.text.count > 6000 ? String(entry.text.prefix(6000)) + " …" : entry.text)
+                    .frame(maxWidth: 720, alignment: .leading)
             }
-            .padding(12)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 isUser ? accent.opacity(0.07) : Color.secondary.opacity(0.05),
                 in: RoundedRectangle(cornerRadius: 10)
@@ -485,6 +486,71 @@ struct TranscriptEntryView: View {
         case .toolResult: return "arrow.turn.down.left"
         default: return "circle"
         }
+    }
+}
+
+/// Renders message text readably: fenced ``` code blocks become monospaced
+/// boxes, everything else gets inline-markdown styling (bold, italics,
+/// `code`) with comfortable line spacing.
+struct MessageBody: View {
+    let text: String
+
+    private struct Segment: Identifiable {
+        let id: Int
+        let isCode: Bool
+        let text: String
+    }
+
+    private var segments: [Segment] {
+        var out: [Segment] = []
+        let parts = text.components(separatedBy: "```")
+        for (i, raw) in parts.enumerated() {
+            let isCode = i % 2 == 1
+            var body = raw
+            if isCode {
+                // Drop a leading language hint like "swift\n".
+                if let nl = body.firstIndex(of: "\n"),
+                   body[body.startIndex..<nl].allSatisfy({ !$0.isWhitespace }) {
+                    body = String(body[body.index(after: nl)...])
+                }
+            }
+            let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            out.append(Segment(id: i, isCode: isCode, text: trimmed))
+        }
+        return out
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(segments) { segment in
+                if segment.isCode {
+                    ScrollView(.horizontal) {
+                        Text(segment.text)
+                            .font(.system(.callout, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(10)
+                    }
+                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+                } else {
+                    Text(Self.inlineMarkdown(segment.text))
+                        .font(.body)
+                        .lineSpacing(3.5)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private static func inlineMarkdown(_ s: String) -> AttributedString {
+        if let attr = try? AttributedString(
+            markdown: s,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) {
+            return attr
+        }
+        return AttributedString(s)
     }
 }
 
