@@ -43,13 +43,17 @@ Chatwerk fixes that.
 
 **Requirements:** macOS 14+, [Claude Code](https://claude.com/claude-code) installed and used at least once.
 
+### Homebrew
+
+```bash
+brew install sewerkde/tap/chatwerk
+```
+
 ### Download
 
 Grab the latest `Chatwerk.dmg` from [Releases](../../releases), drag Chatwerk to Applications.
 
-> **Gatekeeper:** the app is not notarized yet.
-> - **macOS 14:** right-click the app → **Open**.
-> - **macOS 15 and later:** try to open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway** — or run `xattr -d com.apple.quarantine /Applications/Chatwerk.app` in Terminal.
+Builds are signed with a Developer ID certificate and **notarized by Apple** — the app opens with a double-click, no Gatekeeper warnings.
 
 ### Build from source
 
@@ -98,7 +102,7 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev se
 
 - Local-AI chat summaries and auto-tag suggestions (fully offline)
 - Global quick-search hotkey (system-wide ⌘K)
-- Notarized builds + Homebrew cask
+- Sparkle auto-updates
 
 ## Disclaimer
 
