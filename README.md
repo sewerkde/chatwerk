@@ -20,6 +20,15 @@
 
 ---
 
+<p align="center">
+  <picture>
+    <source srcset="docs/screenshot-dark.png" media="(prefers-color-scheme: dark)">
+    <img src="docs/screenshot-light.png" alt="Chatwerk main window — session list with live status, tags and transcript view" width="820">
+  </picture>
+  <br>
+  <sub><i>Shown with demo data — your sessions stay on your Mac.</i></sub>
+</p>
+
 If you use [Claude Code](https://claude.com/claude-code) a lot, you know the problem: dozens of sessions spread across projects, no overview, and finding *that one chat from last week* means grepping through `~/.claude` or keeping a text file full of `claude --resume <uuid>` commands.
 
 Chatwerk fixes that.
