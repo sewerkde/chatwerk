@@ -87,7 +87,33 @@ struct MenuBarPanel: View {
             usageRow("Today", usage.today)
             usageRow("Last 7 days", usage.last7d)
             usageRow("This month", usage.month)
+            if !usage.byModel7d.isEmpty {
+                sectionHeader("By Model · Last 7 Days")
+                    .padding(.top, 4)
+                ForEach(usage.byModel7d.prefix(5), id: \.model) { entry in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(modelColor(entry.displayName))
+                            .frame(width: 7, height: 7)
+                        Text(entry.displayName).font(.caption)
+                        Spacer()
+                        Text("\(entry.tokens.tokenString) · \(Pricing.dollars(entry.cost))")
+                            .font(.caption.weight(.medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
+    }
+
+    private func modelColor(_ name: String) -> Color {
+        let lower = name.lowercased()
+        if lower.contains("fable") || lower.contains("mythos") { return .purple }
+        if lower.contains("opus") { return .orange }
+        if lower.contains("sonnet") { return .blue }
+        if lower.contains("haiku") { return .green }
+        return .gray
     }
 
     private func usageRow(_ label: String, _ period: AppState.UsagePeriod) -> some View {

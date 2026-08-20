@@ -550,11 +550,19 @@ final class AppState: ObservableObject {
         var cost: Double = 0
     }
 
+    struct ModelPeriod {
+        var model: String
+        var displayName: String
+        var tokens: Int64
+        var cost: Double
+    }
+
     struct UsageSummary {
         var window5h = UsagePeriod()
         var today = UsagePeriod()
         var last7d = UsagePeriod()
         var month = UsagePeriod()
+        var byModel7d: [ModelPeriod] = []
     }
 
     /// Sums indexed usage into the windows shown in the menu bar. Boundaries
@@ -578,6 +586,7 @@ final class AppState: ObservableObject {
         let fetchFrom = min(day7, monthPrefix + "-01")
 
         var summary = UsageSummary()
+        var models: [String: (tokens: Int64, cost: Double)] = [:]
         for row in db.hourlyRows(since: fetchFrom) {
             let tokens = row.input + row.output + row.cacheRead + row.cacheWrite
             let cost = Pricing.cost(model: row.model, input: row.input, output: row.output,
@@ -586,9 +595,19 @@ final class AppState: ObservableObject {
             let day = String(row.hour.prefix(10))
             if row.hour >= hour5 { summary.window5h.tokens += tokens; summary.window5h.cost += cost }
             if day == today { summary.today.tokens += tokens; summary.today.cost += cost }
-            if day >= day7 { summary.last7d.tokens += tokens; summary.last7d.cost += cost }
+            if day >= day7 {
+                summary.last7d.tokens += tokens; summary.last7d.cost += cost
+                var entry = models[row.model] ?? (0, 0)
+                entry.tokens += tokens; entry.cost += cost
+                models[row.model] = entry
+            }
             if day.hasPrefix(monthPrefix) { summary.month.tokens += tokens; summary.month.cost += cost }
         }
+        summary.byModel7d = models.map { model, value in
+            ModelPeriod(model: model, displayName: Pricing.displayName(for: model),
+                        tokens: value.tokens, cost: value.cost)
+        }
+        .sorted { $0.cost > $1.cost }
         return summary
     }
 
