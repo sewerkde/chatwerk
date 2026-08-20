@@ -97,6 +97,7 @@ final class Database {
         }
         try? execRaw("ALTER TABLE usage_daily ADD COLUMN cache_write_1h INTEGER NOT NULL DEFAULT 0")
         try? execRaw("ALTER TABLE sessions ADD COLUMN last_usage_msg_id TEXT")
+        try? execRaw("ALTER TABLE tags ADD COLUMN grp TEXT")
 
         // Schema v5 adds hour-granularity usage (for the menu bar's 5h-window
         // and daily summaries); force one full re-index so it backfills.
@@ -503,24 +504,26 @@ final class Database {
     func allTags() -> [TagInfo] {
         queue.sync {
             var out: [TagInfo] = []
-            run("SELECT id, name, color FROM tags ORDER BY name") { s in
+            run("SELECT id, name, color, grp FROM tags ORDER BY name") { s in
                 out.append(TagInfo(id: sqlite3_column_int64(s, 0),
                                    name: Database.text(s, 1) ?? "",
-                                   colorHex: Database.text(s, 2) ?? "#7B61FF"))
+                                   colorHex: Database.text(s, 2) ?? "#7B61FF",
+                                   group: Database.text(s, 3)))
             }
             return out
         }
     }
 
     @discardableResult
-    func createTag(name: String, colorHex: String) -> TagInfo? {
+    func createTag(name: String, colorHex: String, group: String? = nil) -> TagInfo? {
         queue.sync {
-            run("INSERT OR IGNORE INTO tags (name, color) VALUES (?,?)", [name, colorHex])
+            run("INSERT OR IGNORE INTO tags (name, color, grp) VALUES (?,?,?)", [name, colorHex, group])
             var tag: TagInfo?
-            run("SELECT id, name, color FROM tags WHERE name=?", [name]) { s in
+            run("SELECT id, name, color, grp FROM tags WHERE name=?", [name]) { s in
                 tag = TagInfo(id: sqlite3_column_int64(s, 0),
                               name: Database.text(s, 1) ?? "",
-                              colorHex: Database.text(s, 2) ?? "#7B61FF")
+                              colorHex: Database.text(s, 2) ?? "#7B61FF",
+                              group: Database.text(s, 3))
             }
             return tag
         }
@@ -533,13 +536,13 @@ final class Database {
         }
     }
 
-    /// Rename/recolor a tag. If the new name collides with an existing tag,
-    /// the rename is dropped but the color still applies.
-    func updateTag(id: Int64, name: String, colorHex: String) {
+    /// Rename/recolor/regroup a tag. If the new name collides with an existing
+    /// tag, the rename is dropped but color and group still apply.
+    func updateTag(id: Int64, name: String, colorHex: String, group: String?) {
         queue.sync {
-            let renamed = run("UPDATE tags SET name=?, color=? WHERE id=?", [name, colorHex, id])
+            let renamed = run("UPDATE tags SET name=?, color=?, grp=? WHERE id=?", [name, colorHex, group, id])
             if !renamed {
-                run("UPDATE tags SET color=? WHERE id=?", [colorHex, id])
+                run("UPDATE tags SET color=?, grp=? WHERE id=?", [colorHex, group, id])
             }
         }
     }

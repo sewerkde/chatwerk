@@ -395,19 +395,25 @@ final class AppState: ObservableObject {
         updateMeta(session, customTitle: session.customTitle, note: session.note, favorite: !session.favorite)
     }
 
+    /// Distinct tag groups, for the editor's picker and the sidebar layout.
+    var tagGroups: [String] {
+        Array(Set(tags.compactMap { $0.group?.isEmpty == false ? $0.group : nil }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     @discardableResult
-    func createTag(name: String, colorHex: String) -> TagInfo? {
+    func createTag(name: String, colorHex: String, group: String? = nil) -> TagInfo? {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
-        let tag = db.createTag(name: trimmed, colorHex: colorHex)
+        let tag = db.createTag(name: trimmed, colorHex: colorHex, group: group)
         tags = db.allTags()
         return tag
     }
 
-    func updateTag(_ tag: TagInfo, name: String, colorHex: String) {
+    func updateTag(_ tag: TagInfo, name: String, colorHex: String, group: String? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        db.updateTag(id: tag.id, name: trimmed, colorHex: colorHex)
+        db.updateTag(id: tag.id, name: trimmed, colorHex: colorHex, group: group)
         tags = db.allTags()
         // Refresh the copies embedded in loaded sessions.
         let fresh = tags.first { $0.id == tag.id }

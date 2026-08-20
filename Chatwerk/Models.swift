@@ -84,8 +84,20 @@ struct TagInfo: Identifiable, Hashable {
     var id: Int64
     var name: String
     var colorHex: String
+    var group: String? = nil
 
     var color: Color { Color(hex: colorHex) ?? .accentColor }
+}
+
+extension Color {
+    /// "#RRGGBB" for storage; nil if the color can't be resolved to sRGB.
+    var hexString: String? {
+        guard let ns = NSColor(self).usingColorSpace(.sRGB) else { return nil }
+        return String(format: "#%02X%02X%02X",
+                      Int(round(ns.redComponent * 255)),
+                      Int(round(ns.greenComponent * 255)),
+                      Int(round(ns.blueComponent * 255)))
+    }
 }
 
 /// A distinct project (grouped by real cwd).

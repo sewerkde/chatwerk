@@ -151,6 +151,34 @@ struct SidebarView: View {
         return state.tags.filter { $0.name.lowercased().contains(query) }
     }
 
+    /// Ungrouped tags first, then one collapsible bucket per group.
+    private var groupedVisibleTags: [(title: String, tags: [TagInfo])] {
+        let visible = visibleTags
+        var buckets: [(title: String, tags: [TagInfo])] = []
+        let ungrouped = visible.filter { ($0.group ?? "").isEmpty }
+        if !ungrouped.isEmpty { buckets.append((title: "", tags: ungrouped)) }
+        let grouped = Dictionary(grouping: visible.filter { !($0.group ?? "").isEmpty },
+                                 by: { $0.group ?? "" })
+        for key in grouped.keys.sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }) {
+            buckets.append((title: key, tags: grouped[key] ?? []))
+        }
+        return buckets
+    }
+
+    @ViewBuilder
+    private func tagRow(_ tag: TagInfo) -> some View {
+        Label {
+            Text(tag.name)
+        } icon: {
+            Circle().fill(tag.color).frame(width: 10, height: 10)
+        }
+        .tag(SidebarFilter.tag(tag.id))
+        .contextMenu {
+            Button("Edit Tag…") { editingTag = tag }
+            Button("Delete Tag", role: .destructive) { state.deleteTag(tag) }
+        }
+    }
+
     var body: some View {
         List(selection: Binding(
             get: { Optional(state.filter) },
@@ -194,16 +222,13 @@ struct SidebarView: View {
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
                 }
-                ForEach(visibleTags) { tag in
-                    Label {
-                        Text(tag.name)
-                    } icon: {
-                        Circle().fill(tag.color).frame(width: 10, height: 10)
-                    }
-                    .tag(SidebarFilter.tag(tag.id))
-                    .contextMenu {
-                        Button("Edit Tag…") { editingTag = tag }
-                        Button("Delete Tag", role: .destructive) { state.deleteTag(tag) }
+                ForEach(groupedVisibleTags, id: \.title) { bucket in
+                    if bucket.title.isEmpty {
+                        ForEach(bucket.tags) { tagRow($0) }
+                    } else {
+                        DisclosureGroup(bucket.title) {
+                            ForEach(bucket.tags) { tagRow($0) }
+                        }
                     }
                 }
                 Button {
@@ -523,17 +548,24 @@ struct TagEditorSheet: View {
     var assignTo: SessionInfo? = nil
     @State private var name = ""
     @State private var colorHex = "#7B61FF"
+    @State private var group = ""
+    @State private var newGroup = ""
 
-    private static let palette = ["#7B61FF", "#FF6B6B", "#FFA94D", "#40C057", "#339AF0", "#F06595", "#845EF7", "#20C997"]
+    private static let palette = [
+        "#7B61FF", "#845EF7", "#5C7CFA", "#339AF0", "#22B8CF", "#20C997", "#40C057", "#82C91E",
+        "#FAB005", "#FFA94D", "#FF922B", "#FF6B6B", "#F03E3E", "#F06595", "#CC5DE8", "#868E96",
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(editing == nil ? "New Tag" : "Edit Tag").font(.title3.bold())
             TextField("Tag name", text: $name)
                 .textFieldStyle(.roundedBorder)
-                .frame(width: 260)
+                .frame(width: 300)
                 .onSubmit(save)
-            HStack(spacing: 8) {
+
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(24), spacing: 8), count: 8),
+                      alignment: .leading, spacing: 8) {
                 ForEach(Self.palette, id: \.self) { hex in
                     Circle()
                         .fill(Color(hex: hex) ?? .purple)
@@ -546,6 +578,24 @@ struct TagEditorSheet: View {
                         .onTapGesture { colorHex = hex }
                 }
             }
+            ColorPicker("Custom color", selection: Binding(
+                get: { Color(hex: colorHex) ?? .purple },
+                set: { colorHex = $0.hexString ?? colorHex }
+            ), supportsOpacity: false)
+
+            VStack(alignment: .leading, spacing: 6) {
+                if !state.tagGroups.isEmpty {
+                    Picker("Group", selection: $group) {
+                        Text("None").tag("")
+                        ForEach(state.tagGroups, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                }
+                TextField(state.tagGroups.isEmpty ? "Group (optional)" : "…or a new group", text: $newGroup)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 300)
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
@@ -559,6 +609,7 @@ struct TagEditorSheet: View {
             if let editing {
                 name = editing.name
                 colorHex = editing.colorHex
+                group = editing.group ?? ""
             }
         }
     }
@@ -566,9 +617,11 @@ struct TagEditorSheet: View {
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        let newGroupTrimmed = newGroup.trimmingCharacters(in: .whitespaces)
+        let finalGroup = newGroupTrimmed.isEmpty ? (group.isEmpty ? nil : group) : newGroupTrimmed
         if let editing {
-            state.updateTag(editing, name: trimmed, colorHex: colorHex)
-        } else if let tag = state.createTag(name: trimmed, colorHex: colorHex),
+            state.updateTag(editing, name: trimmed, colorHex: colorHex, group: finalGroup)
+        } else if let tag = state.createTag(name: trimmed, colorHex: colorHex, group: finalGroup),
                   let assignTo {
             state.setTag(assignTo, tag: tag, on: true)
         }
