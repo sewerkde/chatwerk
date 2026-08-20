@@ -20,14 +20,17 @@ struct MainView: View {
     @State private var pendingDelete: SessionInfo?
     @State private var showStats = false
     @State private var showNewTag = false
+    @State private var newTagTarget: SessionInfo?
+    @State private var editingTag: TagInfo?
     @AppStorage("didOnboard") private var didOnboard = false
 
     var body: some View {
         NavigationSplitView {
-            SidebarView(showNewTag: $showNewTag)
+            SidebarView(showNewTag: $showNewTag, editingTag: $editingTag)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230)
         } content: {
-            SessionListView(pendingDelete: $pendingDelete)
+            SessionListView(pendingDelete: $pendingDelete,
+                            showNewTag: $showNewTag, newTagTarget: $newTagTarget)
                 .navigationSplitViewColumnWidth(min: 340, ideal: 400)
         } detail: {
             if let session = state.selectedSession {
@@ -75,8 +78,12 @@ struct MainView: View {
                 .environmentObject(state)
                 .interactiveDismissDisabled()
         }
-        .sheet(isPresented: $showNewTag) {
-            NewTagSheet()
+        .sheet(isPresented: $showNewTag, onDismiss: { newTagTarget = nil }) {
+            TagEditorSheet(assignTo: newTagTarget)
+                .environmentObject(state)
+        }
+        .sheet(item: $editingTag) { tag in
+            TagEditorSheet(editing: tag)
                 .environmentObject(state)
         }
         .alert("Chatwerk", isPresented: Binding(
@@ -135,6 +142,14 @@ struct MainView: View {
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
     @Binding var showNewTag: Bool
+    @Binding var editingTag: TagInfo?
+    @State private var tagFilter = ""
+
+    private var visibleTags: [TagInfo] {
+        let query = tagFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !query.isEmpty else { return state.tags }
+        return state.tags.filter { $0.name.lowercased().contains(query) }
+    }
 
     var body: some View {
         List(selection: Binding(
@@ -174,7 +189,12 @@ struct SidebarView: View {
                 }
             }
             Section("Tags") {
-                ForEach(state.tags) { tag in
+                if state.tags.count > 10 {
+                    TextField("Filter tags…", text: $tagFilter)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                }
+                ForEach(visibleTags) { tag in
                     Label {
                         Text(tag.name)
                     } icon: {
@@ -182,6 +202,7 @@ struct SidebarView: View {
                     }
                     .tag(SidebarFilter.tag(tag.id))
                     .contextMenu {
+                        Button("Edit Tag…") { editingTag = tag }
                         Button("Delete Tag", role: .destructive) { state.deleteTag(tag) }
                     }
                 }
@@ -225,6 +246,8 @@ struct SidebarView: View {
 struct SessionListView: View {
     @EnvironmentObject var state: AppState
     @Binding var pendingDelete: SessionInfo?
+    @Binding var showNewTag: Bool
+    @Binding var newTagTarget: SessionInfo?
 
     var body: some View {
         List(selection: $state.selectedSessionId) {
@@ -305,23 +328,53 @@ struct SessionListView: View {
         Button(session.favorite ? "Remove from Favorites" : "Add to Favorites") {
             state.toggleFavorite(session)
         }
-        if !state.tags.isEmpty {
-            Menu("Tags") {
+        Menu("Tags") {
+            let assignedIds = Set(session.tags.map(\.id))
+            if state.tags.count <= 20 {
                 ForEach(state.tags) { tag in
-                    let isOn = session.tags.contains { $0.id == tag.id }
-                    Button {
-                        state.setTag(session, tag: tag, on: !isOn)
-                    } label: {
-                        HStack {
-                            if isOn { Image(systemName: "checkmark") }
-                            Text(tag.name)
-                        }
-                    }
+                    tagToggle(tag, session: session, isOn: assignedIds.contains(tag.id))
                 }
+            } else {
+                // Big tag sets: assigned first, then the most-used ones;
+                // the full searchable list lives in the Info panel.
+                ForEach(session.tags) { tag in
+                    tagToggle(tag, session: session, isOn: true)
+                }
+                if !session.tags.isEmpty { Divider() }
+                let counts = state.tagUsageCounts
+                let top = state.tags
+                    .filter { !assignedIds.contains($0.id) }
+                    .sorted { (counts[$0.id] ?? 0) > (counts[$1.id] ?? 0) }
+                    .prefix(15)
+                ForEach(Array(top)) { tag in
+                    tagToggle(tag, session: session, isOn: false)
+                }
+                Divider()
+                Button("All Tags…") {
+                    state.selectedSessionId = session.id
+                    UserDefaults.standard.set(true, forKey: "showInfoPanel")
+                }
+            }
+            if !state.tags.isEmpty { Divider() }
+            Button("New Tag…") {
+                newTagTarget = session
+                showNewTag = true
             }
         }
         Divider()
         Button("Delete…", role: .destructive) { pendingDelete = session }
+    }
+
+    @ViewBuilder
+    private func tagToggle(_ tag: TagInfo, session: SessionInfo, isOn: Bool) -> some View {
+        Button {
+            state.setTag(session, tag: tag, on: !isOn)
+        } label: {
+            HStack {
+                if isOn { Image(systemName: "checkmark") }
+                Text(tag.name)
+            }
+        }
     }
 
     /// Attention tint: orange = Claude answered and waits for you,
@@ -453,44 +506,64 @@ struct SessionRowView: View {
 
 // MARK: - New tag sheet
 
-struct NewTagSheet: View {
+/// Create or edit a tag. In create mode an optional session receives the new
+/// tag immediately (used from the row context menu and the Info panel).
+struct TagEditorSheet: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
+    var editing: TagInfo? = nil
+    var assignTo: SessionInfo? = nil
     @State private var name = ""
-    @State private var color = Color(hex: "#7B61FF") ?? .purple
+    @State private var colorHex = "#7B61FF"
 
     private static let palette = ["#7B61FF", "#FF6B6B", "#FFA94D", "#40C057", "#339AF0", "#F06595", "#845EF7", "#20C997"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("New Tag").font(.title3.bold())
+            Text(editing == nil ? "New Tag" : "Edit Tag").font(.title3.bold())
             TextField("Tag name", text: $name)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 260)
+                .onSubmit(save)
             HStack(spacing: 8) {
                 ForEach(Self.palette, id: \.self) { hex in
-                    let c = Color(hex: hex) ?? .purple
                     Circle()
-                        .fill(c)
+                        .fill(Color(hex: hex) ?? .purple)
                         .frame(width: 22, height: 22)
                         .overlay {
-                            if c == color { Image(systemName: "checkmark").font(.caption2.bold()).foregroundStyle(.white) }
+                            if hex == colorHex {
+                                Image(systemName: "checkmark").font(.caption2.bold()).foregroundStyle(.white)
+                            }
                         }
-                        .onTapGesture { color = c }
+                        .onTapGesture { colorHex = hex }
                 }
             }
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Create") {
-                    let hex = Self.palette.first { Color(hex: $0) == color } ?? "#7B61FF"
-                    state.createTag(name: name, colorHex: hex)
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button(editing == nil ? "Create" : "Save", action: save)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .padding(20)
+        .onAppear {
+            if let editing {
+                name = editing.name
+                colorHex = editing.colorHex
+            }
+        }
+    }
+
+    private func save() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if let editing {
+            state.updateTag(editing, name: trimmed, colorHex: colorHex)
+        } else if let tag = state.createTag(name: trimmed, colorHex: colorHex),
+                  let assignTo {
+            state.setTag(assignTo, tag: tag, on: true)
+        }
+        dismiss()
     }
 }

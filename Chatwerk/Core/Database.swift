@@ -79,6 +79,16 @@ final class Database {
             cache_write_1h INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (day, model)
         );
+        CREATE TABLE IF NOT EXISTS usage_hourly (
+            hour TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input INTEGER NOT NULL DEFAULT 0,
+            output INTEGER NOT NULL DEFAULT 0,
+            cache_read INTEGER NOT NULL DEFAULT 0,
+            cache_write INTEGER NOT NULL DEFAULT 0,
+            cache_write_1h INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (hour, model)
+        );
         """)
 
         // Additive columns for per-session token totals (ignore "already exists").
@@ -88,19 +98,19 @@ final class Database {
         try? execRaw("ALTER TABLE usage_daily ADD COLUMN cache_write_1h INTEGER NOT NULL DEFAULT 0")
         try? execRaw("ALTER TABLE sessions ADD COLUMN last_usage_msg_id TEXT")
 
-        // Schema v4: usage aggregation with the 5m/1h cache-write split (they
-        // bill differently) and subagent (sidechain) usage counted in; force
-        // one full re-index so token data is backfilled from all transcripts.
+        // Schema v5 adds hour-granularity usage (for the menu bar's 5h-window
+        // and daily summaries); force one full re-index so it backfills.
         var version: Int32 = 0
         run("PRAGMA user_version") { s in version = sqlite3_column_int(s, 0) }
-        if version < 4 {
+        if version < 5 {
             try execRaw("""
             DELETE FROM fts;
             DELETE FROM usage_daily;
+            DELETE FROM usage_hourly;
             UPDATE sessions SET indexed_offset=0, message_count=0, last_usage_msg_id=NULL,
                 in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0,
                 cache_write_1h_tokens=0;
-            PRAGMA user_version = 4;
+            PRAGMA user_version = 5;
             """)
         }
     }
@@ -304,7 +314,8 @@ final class Database {
     func recordUsage(uuid: String, projectDir: String,
                      input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64,
                      lastMessageId: String?,
-                     daily: [(day: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)]) {
+                     daily: [(day: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)],
+                     hourly: [(hour: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)]) {
         guard input + output + cacheRead + cacheWrite > 0 else { return }
         queue.sync {
             transaction {
@@ -325,8 +336,45 @@ final class Database {
                         cache_write_1h=cache_write_1h+excluded.cache_write_1h
                     """, [d.day, d.model, d.input, d.output, d.cacheRead, d.cacheWrite, d.cacheWrite1h]) && ok
                 }
+                for h in hourly {
+                    ok = run("""
+                    INSERT INTO usage_hourly (hour, model, input, output, cache_read, cache_write, cache_write_1h)
+                    VALUES (?,?,?,?,?,?,?)
+                    ON CONFLICT(hour, model) DO UPDATE SET
+                        input=input+excluded.input, output=output+excluded.output,
+                        cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
+                        cache_write_1h=cache_write_1h+excluded.cache_write_1h
+                    """, [h.hour, h.model, h.input, h.output, h.cacheRead, h.cacheWrite, h.cacheWrite1h]) && ok
+                }
                 return ok
             }
+        }
+    }
+
+    struct HourRow {
+        var hour: String   // "yyyy-MM-ddTHH", UTC
+        var model: String
+        var input: Int64
+        var output: Int64
+        var cacheRead: Int64
+        var cacheWrite: Int64
+        var cacheWrite1h: Int64
+    }
+
+    func hourlyRows(since hourPrefix: String) -> [HourRow] {
+        queue.sync {
+            var out: [HourRow] = []
+            run("SELECT hour, model, input, output, cache_read, cache_write, cache_write_1h FROM usage_hourly WHERE hour >= ? ORDER BY hour", [hourPrefix]) { s in
+                out.append(HourRow(
+                    hour: Database.text(s, 0) ?? "",
+                    model: Database.text(s, 1) ?? "",
+                    input: sqlite3_column_int64(s, 2),
+                    output: sqlite3_column_int64(s, 3),
+                    cacheRead: sqlite3_column_int64(s, 4),
+                    cacheWrite: sqlite3_column_int64(s, 5),
+                    cacheWrite1h: sqlite3_column_int64(s, 6)))
+            }
+            return out
         }
     }
 
@@ -483,6 +531,28 @@ final class Database {
             run("DELETE FROM session_tags WHERE tag_id=?", [id])
             run("DELETE FROM tags WHERE id=?", [id])
         }
+    }
+
+    /// Rename/recolor a tag. If the new name collides with an existing tag,
+    /// the rename is dropped but the color still applies.
+    func updateTag(id: Int64, name: String, colorHex: String) {
+        queue.sync {
+            let renamed = run("UPDATE tags SET name=?, color=? WHERE id=?", [name, colorHex, id])
+            if !renamed {
+                run("UPDATE tags SET color=? WHERE id=?", [colorHex, id])
+            }
+        }
+    }
+
+    /// Writes a compact, consistent single-file copy of the whole database
+    /// (WAL checkpointed) — safe to run while the app is open.
+    func backup(to url: URL) throws {
+        try? FileManager.default.removeItem(at: url)
+        var ok = false
+        queue.sync {
+            ok = run("VACUUM INTO ?", [url.path])
+        }
+        guard ok else { throw DBError.exec("Could not write the backup file.") }
     }
 
     func setTag(uuid: String, tagId: Int64, on: Bool) {

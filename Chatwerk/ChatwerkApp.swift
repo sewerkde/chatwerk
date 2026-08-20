@@ -65,6 +65,13 @@ private struct MenuBarContent: View {
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
 
     var body: some View {
+        Section("Usage") {
+            let usage = state.usageSummary()
+            Text("Last 5h: \(usage.window5h.tokens.tokenString) tokens · \(Pricing.dollars(usage.window5h.cost))")
+            Text("Today: \(usage.today.tokens.tokenString) · \(Pricing.dollars(usage.today.cost))")
+            Text("Last 7 days: \(usage.last7d.tokens.tokenString) · \(Pricing.dollars(usage.last7d.cost))")
+            Text("This month: \(usage.month.tokens.tokenString) · \(Pricing.dollars(usage.month.cost))")
+        }
         Section("Recent Sessions") {
             if state.sessions.isEmpty {
                 Text("No sessions yet")

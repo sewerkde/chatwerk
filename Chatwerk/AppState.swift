@@ -381,10 +381,68 @@ final class AppState: ObservableObject {
         updateMeta(session, customTitle: session.customTitle, note: session.note, favorite: !session.favorite)
     }
 
-    func createTag(name: String, colorHex: String) {
-        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        db.createTag(name: name.trimmingCharacters(in: .whitespaces), colorHex: colorHex)
+    @discardableResult
+    func createTag(name: String, colorHex: String) -> TagInfo? {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        let tag = db.createTag(name: trimmed, colorHex: colorHex)
         tags = db.allTags()
+        return tag
+    }
+
+    func updateTag(_ tag: TagInfo, name: String, colorHex: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        db.updateTag(id: tag.id, name: trimmed, colorHex: colorHex)
+        tags = db.allTags()
+        // Refresh the copies embedded in loaded sessions.
+        let fresh = tags.first { $0.id == tag.id }
+        func apply(_ list: inout [SessionInfo]) {
+            for i in list.indices {
+                for j in list[i].tags.indices where list[i].tags[j].id == tag.id {
+                    if let fresh { list[i].tags[j] = fresh }
+                }
+            }
+        }
+        apply(&sessions)
+        if var results = searchResults {
+            apply(&results)
+            searchResults = results
+        }
+    }
+
+    /// How many sessions carry each tag (for ordering big tag lists).
+    var tagUsageCounts: [Int64: Int] {
+        var counts: [Int64: Int] = [:]
+        for s in sessions {
+            for t in s.tags { counts[t.id, default: 0] += 1 }
+        }
+        return counts
+    }
+
+    /// Writes a dated backup folder: a consistent copy of the index database
+    /// (tags, notes, favorites, usage, search index) plus the app settings.
+    func exportBackup(to directory: URL) throws -> URL {
+        let stamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd HH.mm"
+            return f.string(from: Date())
+        }()
+        let folder = directory.appendingPathComponent("Chatwerk Backup \(stamp)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try db.backup(to: folder.appendingPathComponent("index.db"))
+
+        let settingKeys = ["terminalKind", "claudeCommand", "showMenuBarExtra",
+                           "notifyWhenReady", "notifyWithBanner", "notifyWithSound",
+                           "readySound", "appearance", "accentName", "claudeDataDir",
+                           "showInfoPanel", "transcriptNewestFirst"]
+        var settings: [String: Any] = [:]
+        for key in settingKeys {
+            if let value = UserDefaults.standard.object(forKey: key) { settings[key] = value }
+        }
+        let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: folder.appendingPathComponent("settings.json"))
+        return folder
     }
 
     func deleteTag(_ tag: TagInfo) {
@@ -438,6 +496,55 @@ final class AppState: ObservableObject {
             }
             searchResults = results
         }
+    }
+
+    // MARK: - Usage summary (menu bar)
+
+    struct UsagePeriod {
+        var tokens: Int64 = 0
+        var cost: Double = 0
+    }
+
+    struct UsageSummary {
+        var window5h = UsagePeriod()
+        var today = UsagePeriod()
+        var last7d = UsagePeriod()
+        var month = UsagePeriod()
+    }
+
+    /// Sums indexed usage into the windows shown in the menu bar. Boundaries
+    /// are UTC — the clock the transcripts are written in. This is our own
+    /// local estimate; Anthropic does not expose remaining plan quota.
+    func usageSummary() -> UsageSummary {
+        let utc = TimeZone(identifier: "UTC") ?? .current
+        let hourF = DateFormatter()
+        hourF.dateFormat = "yyyy-MM-dd'T'HH"
+        hourF.timeZone = utc
+        let dayF = DateFormatter()
+        dayF.dateFormat = "yyyy-MM-dd"
+        dayF.timeZone = utc
+
+        let now = Date()
+        let today = dayF.string(from: now)
+        let hour5 = hourF.string(from: now.addingTimeInterval(-5 * 3600))
+        let day7 = dayF.string(from: now.addingTimeInterval(-7 * 86_400))
+        let monthPrefix = String(today.prefix(7))
+        // Fetch far enough back to cover both the rolling 7 days and the month.
+        let fetchFrom = min(day7, monthPrefix + "-01")
+
+        var summary = UsageSummary()
+        for row in db.hourlyRows(since: fetchFrom) {
+            let tokens = row.input + row.output + row.cacheRead + row.cacheWrite
+            let cost = Pricing.cost(model: row.model, input: row.input, output: row.output,
+                                    cacheRead: row.cacheRead, cacheWrite: row.cacheWrite,
+                                    cacheWrite1h: row.cacheWrite1h) ?? 0
+            let day = String(row.hour.prefix(10))
+            if row.hour >= hour5 { summary.window5h.tokens += tokens; summary.window5h.cost += cost }
+            if day == today { summary.today.tokens += tokens; summary.today.cost += cost }
+            if day >= day7 { summary.last7d.tokens += tokens; summary.last7d.cost += cost }
+            if day.hasPrefix(monthPrefix) { summary.month.tokens += tokens; summary.month.cost += cost }
+        }
+        return summary
     }
 
     // MARK: - Stats

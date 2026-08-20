@@ -191,10 +191,23 @@ private struct NotificationSettingsTab: View {
 // MARK: - Advanced
 
 private struct AdvancedSettingsTab: View {
+    @EnvironmentObject var state: AppState
     @AppStorage("claudeDataDir") private var claudeDataDir: String = ""
+    @State private var backupResult: String?
 
     var body: some View {
         Form {
+            Section("Backup") {
+                Button("Export Backup…") { exportBackup() }
+                if let backupResult {
+                    Text(backupResult)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Exports a dated folder with your full index (tags, notes, favorites, usage and search data) plus the app settings. To restore, quit Chatwerk and copy the backup's index.db over the index database shown below.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Claude Code data") {
                 LabeledContent("Data folder") {
                     HStack(spacing: 6) {
@@ -226,5 +239,21 @@ private struct AdvancedSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func exportBackup() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "Export Here"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let folder = try state.exportBackup(to: url)
+            backupResult = "Backup written to “\(folder.lastPathComponent)”."
+            NSWorkspace.shared.activateFileViewerSelecting([folder])
+        } catch {
+            backupResult = "Backup failed: \(error.localizedDescription)"
+        }
     }
 }

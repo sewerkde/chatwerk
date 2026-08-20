@@ -13,6 +13,13 @@ struct DetailView: View {
     @State private var transcript: TranscriptPage?
     @State private var loadingTranscript = false
     @State private var showNewTag = false
+    @State private var tagSearch = ""
+
+    private var inspectorTags: [TagInfo] {
+        let query = tagSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !query.isEmpty else { return state.tags }
+        return state.tags.filter { $0.name.lowercased().contains(query) }
+    }
     @AppStorage("showInfoPanel") private var showInfoPanel = false
     @AppStorage("transcriptNewestFirst") private var newestFirst = true
 
@@ -62,7 +69,7 @@ struct DetailView: View {
             }
         }
         .sheet(isPresented: $showNewTag) {
-            NewTagSheet()
+            TagEditorSheet(assignTo: current)
                 .environmentObject(state)
         }
         .toolbar {
@@ -207,8 +214,13 @@ struct DetailView: View {
                     Text("Tag this chat to find it again from the sidebar.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                    if state.tags.count > 12 {
+                        TextField("Search tags…", text: $tagSearch)
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                    }
                     FlowLayoutLite(spacing: 6) {
-                        ForEach(state.tags) { tag in
+                        ForEach(inspectorTags) { tag in
                             let isOn = current.tags.contains { $0.id == tag.id }
                             Button {
                                 state.setTag(current, tag: tag, on: !isOn)

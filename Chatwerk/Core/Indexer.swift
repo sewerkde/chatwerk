@@ -50,6 +50,7 @@ final class Indexer {
             var added = 0
             var totIn: Int64 = 0, totOut: Int64 = 0, totCR: Int64 = 0, totCW: Int64 = 0, totCW1h: Int64 = 0
             var daily: [String: (input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)] = [:]
+            var hourly: [String: (input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)] = [:]
 
             for line in chunk.lines {
                 guard JSONL.lineHasPrefix(line, anyOf: ["{\"parentUuid\"", "{\"type\":\"user\"", "{\"type\":\"assistant\""]) else { continue }
@@ -76,13 +77,19 @@ final class Indexer {
                             totCW1h += min(cw1hTok, cwTok)
                             lastCountedId = id
                             let model = (message["model"] as? String) ?? "unknown"
-                            let day = String(((obj["timestamp"] as? String) ?? "unknown").prefix(10))
-                            let key = day + "|" + model
+                            let timestamp = (obj["timestamp"] as? String) ?? "unknown"
+                            let key = String(timestamp.prefix(10)) + "|" + model
                             var agg = daily[key] ?? (0, 0, 0, 0, 0)
                             agg.input += inTok; agg.output += outTok
                             agg.cacheRead += crTok; agg.cacheWrite += cwTok
                             agg.cacheWrite1h += min(cw1hTok, cwTok)
                             daily[key] = agg
+                            let hourKey = String(timestamp.prefix(13)) + "|" + model
+                            var hagg = hourly[hourKey] ?? (0, 0, 0, 0, 0)
+                            hagg.input += inTok; hagg.output += outTok
+                            hagg.cacheRead += crTok; hagg.cacheWrite += cwTok
+                            hagg.cacheWrite1h += min(cw1hTok, cwTok)
+                            hourly[hourKey] = hagg
                         }
                     }
                 }
@@ -106,6 +113,14 @@ final class Indexer {
                            daily: daily.map { key, agg in
                                let parts = key.split(separator: "|", maxSplits: 1)
                                return (day: String(parts[0]),
+                                       model: parts.count > 1 ? String(parts[1]) : "unknown",
+                                       input: agg.input, output: agg.output,
+                                       cacheRead: agg.cacheRead, cacheWrite: agg.cacheWrite,
+                                       cacheWrite1h: agg.cacheWrite1h)
+                           },
+                           hourly: hourly.map { key, agg in
+                               let parts = key.split(separator: "|", maxSplits: 1)
+                               return (hour: String(parts[0]),
                                        model: parts.count > 1 ? String(parts[1]) : "unknown",
                                        input: agg.input, output: agg.output,
                                        cacheRead: agg.cacheRead, cacheWrite: agg.cacheWrite,
