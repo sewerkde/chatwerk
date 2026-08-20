@@ -53,90 +53,10 @@ struct ChatwerkApp: App {
         }
 
         MenuBarExtra("Chatwerk", image: "MenuBarIcon", isInserted: $showMenuBarExtra) {
-            MenuBarContent()
+            MenuBarPanel()
                 .environmentObject(state)
+                .tint(Theme.accent(accentName))
         }
-    }
-}
-
-private struct MenuBarContent: View {
-    @EnvironmentObject var state: AppState
-    @Environment(\.openWindow) private var openWindow
-    @AppStorage("notifyWhenReady") private var notifyWhenReady = true
-
-    var body: some View {
-        if state.showPlanLimits {
-            Section("Plan Limits") {
-                if let plan = state.planUsage {
-                    Text("5h window: \(percent(plan.fiveHour))\(resetSuffix(plan.fiveHour))")
-                    Text("This week: \(percent(plan.sevenDay))\(resetSuffix(plan.sevenDay))")
-                    if let opus = plan.sevenDayOpus, opus.utilization != nil {
-                        Text("Week (Opus): \(percent(opus))")
-                    }
-                    if let sonnet = plan.sevenDaySonnet, sonnet.utilization != nil {
-                        Text("Week (Sonnet): \(percent(sonnet))")
-                    }
-                } else {
-                    Text(state.planUsageError ?? "Loading plan limits…")
-                }
-            }
-        }
-        Section("Usage") {
-            let usage = state.usageSummary()
-            Text("Last 5h: \(usage.window5h.tokens.tokenString) tokens · \(Pricing.dollars(usage.window5h.cost))")
-            Text("Today: \(usage.today.tokens.tokenString) · \(Pricing.dollars(usage.today.cost))")
-            Text("Last 7 days: \(usage.last7d.tokens.tokenString) · \(Pricing.dollars(usage.last7d.cost))")
-            Text("This month: \(usage.month.tokens.tokenString) · \(Pricing.dollars(usage.month.cost))")
-        }
-        Section("Recent Sessions") {
-            if state.sessions.isEmpty {
-                Text("No sessions yet")
-            }
-            ForEach(state.sessions.prefix(10)) { session in
-                Button {
-                    state.open(session)
-                } label: {
-                    Label(menuTitle(session), systemImage: menuSymbol(session))
-                }
-            }
-        }
-        Divider()
-        Toggle("Notify when Claude is ready", isOn: $notifyWhenReady)
-        Divider()
-        Button("Open Chatwerk") {
-            openWindow(id: "main")
-            NSApp.activate()
-        }
-        .keyboardShortcut("o")
-        Button("Quit Chatwerk") {
-            NSApp.terminate(nil)
-        }
-        .keyboardShortcut("q")
-    }
-
-    private func menuTitle(_ s: SessionInfo) -> String {
-        let title = s.displayTitle
-        return title.count > 50 ? String(title.prefix(50)) + "…" : title
-    }
-
-    /// Menus render template-only, so status is encoded in symbol shape:
-    /// waiting → exclamation bubble, working → ellipsis bubble, else plain.
-    private func menuSymbol(_ s: SessionInfo) -> String {
-        if s.isWaitingForYou { return "exclamationmark.bubble.fill" }
-        if s.isWorking { return "ellipsis.bubble.fill" }
-        return "bubble.left"
-    }
-
-    private static let isoParser = ISO8601DateFormatter()
-
-    private func percent(_ window: PlanUsage.Window?) -> String {
-        guard let value = window?.utilization else { return "—" }
-        return String(format: "%.0f%% used", value)
-    }
-
-    private func resetSuffix(_ window: PlanUsage.Window?) -> String {
-        guard let raw = window?.resetsAt,
-              let date = Self.isoParser.date(from: raw) else { return "" }
-        return " · resets \(date.formatted(date: .omitted, time: .shortened))"
+        .menuBarExtraStyle(.window)
     }
 }
