@@ -129,7 +129,7 @@ enum TerminalKind: String, CaseIterable, Identifiable {
 
     var caveat: String? {
         self == .warp
-            ? "Opens via a Warp Launch Configuration — the resume command runs automatically. It's also copied to your clipboard as a fallback for older Warp versions."
+            ? "Warp can't be scripted, so Chatwerk opens it with the resume command on your clipboard — paste (⌘V) and press ↩."
             : nil
     }
 

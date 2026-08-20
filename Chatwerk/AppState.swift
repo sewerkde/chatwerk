@@ -135,6 +135,7 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 guard let self else { return }
                 self.refreshLive()
+                self.refreshPlanUsage()
                 await self.rescanIfChanged()
             }
         }
@@ -352,12 +353,25 @@ final class AppState: ObservableObject {
 
     // MARK: - Actions
 
-    func open(_ session: SessionInfo) {
-        let result = TerminalLauncher.open(session: session, terminal: terminalKind, claudeCommand: claudeCommand)
+    func open(_ session: SessionInfo, in terminal: TerminalKind? = nil) {
+        let kind = terminal ?? terminalKind
+        let result = TerminalLauncher.open(session: session, terminal: kind, claudeCommand: claudeCommand)
         switch result {
-        case .opened: break
-        case .copiedToClipboard(let reason): alertMessage = reason
-        case .failed(let msg): alertMessage = msg
+        case .opened:
+            break
+        case .copiedToClipboard(let reason):
+            // Warp always goes through the clipboard; explain it once,
+            // then stay quiet instead of nagging on every resume.
+            if kind == .warp {
+                if !UserDefaults.standard.bool(forKey: "warpCopyHintShown") {
+                    UserDefaults.standard.set(true, forKey: "warpCopyHintShown")
+                    alertMessage = reason
+                }
+            } else {
+                alertMessage = reason
+            }
+        case .failed(let msg):
+            alertMessage = msg
         }
     }
 
@@ -495,6 +509,31 @@ final class AppState: ObservableObject {
                 change(&results[i])
             }
             searchResults = results
+        }
+    }
+
+    // MARK: - Plan limits (opt-in, Claude Code's /usage numbers)
+
+    @AppStorage("showPlanLimits") var showPlanLimits: Bool = false
+    @Published var planUsage: PlanUsage.Snapshot?
+    @Published var planUsageError: String?
+    private var planFetchedAt: Date?
+
+    /// Refreshes the server-side plan utilization. Throttled to the endpoint's
+    /// safe cadence (3 min) unless forced from the Settings toggle.
+    func refreshPlanUsage(force: Bool = false) {
+        guard showPlanLimits else { return }
+        if !force, let last = planFetchedAt, Date().timeIntervalSince(last) < 180 { return }
+        planFetchedAt = Date()
+        Task { [weak self] in
+            do {
+                let snapshot = try await PlanUsage.fetch()
+                self?.planUsage = snapshot
+                self?.planUsageError = nil
+            } catch {
+                self?.planUsageError = (error as? PlanUsage.FetchError)?.errorDescription
+                    ?? error.localizedDescription
+            }
         }
     }
 

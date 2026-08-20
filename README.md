@@ -98,7 +98,7 @@ Yes: point Settings → *Data folder* at your custom directory. The `claude` bin
 A session is more than its transcript: Claude Code also keeps file-edit backups, background task state and subagent transcripts. Chatwerk removes all of it so nothing is left behind.
 
 **Warp support?**
-Warp can't be scripted with AppleScript, so Chatwerk drives it with a [Launch Configuration](https://docs.warp.dev/features/sessions/launch-configurations): the resume command runs automatically in the right directory. The command is also copied to your clipboard as a fallback for older Warp versions.
+Warp can't be scripted with AppleScript, so Chatwerk opens Warp with the resume command already on your clipboard — paste (⌘V), hit return, and you're back in your session.
 
 **Will you support other AI CLIs (Codex, Gemini CLI, …)?**
 Maybe later — the scanner/indexer layer is provider-shaped, but v1 stays focused on doing one thing well. Open an issue if you'd use it.

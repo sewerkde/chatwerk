@@ -65,6 +65,22 @@ private struct MenuBarContent: View {
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
 
     var body: some View {
+        if state.showPlanLimits {
+            Section("Plan Limits") {
+                if let plan = state.planUsage {
+                    Text("5h window: \(percent(plan.fiveHour))\(resetSuffix(plan.fiveHour))")
+                    Text("This week: \(percent(plan.sevenDay))\(resetSuffix(plan.sevenDay))")
+                    if let opus = plan.sevenDayOpus, opus.utilization != nil {
+                        Text("Week (Opus): \(percent(opus))")
+                    }
+                    if let sonnet = plan.sevenDaySonnet, sonnet.utilization != nil {
+                        Text("Week (Sonnet): \(percent(sonnet))")
+                    }
+                } else {
+                    Text(state.planUsageError ?? "Loading plan limits…")
+                }
+            }
+        }
         Section("Usage") {
             let usage = state.usageSummary()
             Text("Last 5h: \(usage.window5h.tokens.tokenString) tokens · \(Pricing.dollars(usage.window5h.cost))")
@@ -109,5 +125,18 @@ private struct MenuBarContent: View {
         if s.isWaitingForYou { return "exclamationmark.bubble.fill" }
         if s.isWorking { return "ellipsis.bubble.fill" }
         return "bubble.left"
+    }
+
+    private static let isoParser = ISO8601DateFormatter()
+
+    private func percent(_ window: PlanUsage.Window?) -> String {
+        guard let value = window?.utilization else { return "—" }
+        return String(format: "%.0f%% used", value)
+    }
+
+    private func resetSuffix(_ window: PlanUsage.Window?) -> String {
+        guard let raw = window?.resetsAt,
+              let date = Self.isoParser.date(from: raw) else { return "" }
+        return " · resets \(date.formatted(date: .omitted, time: .shortened))"
     }
 }

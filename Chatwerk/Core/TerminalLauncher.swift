@@ -39,48 +39,21 @@ enum TerminalLauncher {
         case .ghostty:
             return launchGhostty(session: session, command: command)
         case .warp:
-            let resumeOnly = command.components(separatedBy: " && ").last ?? command
-            return launchWarp(session: session, resumeCommand: resumeOnly, fullCommand: command)
+            return launchWarp(command: command)
         }
     }
 
-    /// Warp can't be driven by AppleScript, but it supports Launch
-    /// Configurations: a YAML file ("open this cwd, run these commands")
-    /// opened through the warp:// URL scheme — so resume runs automatically.
-    private static func launchWarp(session: SessionInfo, resumeCommand: String, fullCommand: String) -> LaunchResult {
-        let dir = ClaudePaths.appSupportDir.appendingPathComponent("warp", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let configURL = dir.appendingPathComponent("chatwerk-resume.yaml")
-        let cwd = session.cwd ?? NSHomeDirectory()
-        let yaml = """
-        ---
-        name: chatwerk-resume
-        windows:
-          - tabs:
-              - title: \(yamlQuote("Claude · " + session.displayTitle.prefix(40)))
-                layout:
-                  cwd: \(yamlQuote(cwd))
-                  commands:
-                    - exec: \(yamlQuote(resumeCommand))
-        """
-        // Fallback for older Warp versions stays on the clipboard.
-        copyToClipboard(fullCommand)
-        do {
-            try yaml.write(to: configURL, atomically: true, encoding: .utf8)
-        } catch {
-            return .copiedToClipboard(reason: "Couldn't prepare the Warp launch file — the resume command is on your clipboard, paste it (⌘V) into Warp.")
+    /// Warp can't be scripted reliably (no AppleScript; launch-config URLs
+    /// proved fragile across versions) — so Chatwerk copies the resume
+    /// command and brings Warp to the front. One paste and you're back in.
+    private static func launchWarp(command: String) -> LaunchResult {
+        copyToClipboard(command)
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "dev.warp.Warp-Stable")
+                ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "dev.warp.Warp") else {
+            return .failed("Warp doesn't seem to be installed — the resume command is on your clipboard.")
         }
-        guard let encoded = configURL.path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "warp://launch/" + encoded),
-              NSWorkspace.shared.open(url) else {
-            return .copiedToClipboard(reason: "Warp didn't accept the launch request — the resume command is on your clipboard, paste it (⌘V) into a Warp tab.")
-        }
-        return .opened
-    }
-
-    private static func yamlQuote(_ s: any StringProtocol) -> String {
-        "\"" + s.replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        return .copiedToClipboard(reason: "Warp opened — the resume command is on your clipboard. Paste (⌘V) and press ↩.")
     }
 
     static func copyToClipboard(_ text: String) {

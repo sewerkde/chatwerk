@@ -193,6 +193,7 @@ private struct NotificationSettingsTab: View {
 private struct AdvancedSettingsTab: View {
     @EnvironmentObject var state: AppState
     @AppStorage("claudeDataDir") private var claudeDataDir: String = ""
+    @AppStorage("showPlanLimits") private var showPlanLimits: Bool = false
     @State private var backupResult: String?
 
     var body: some View {
@@ -205,6 +206,15 @@ private struct AdvancedSettingsTab: View {
                         .foregroundStyle(.secondary)
                 }
                 Text("Exports a dated folder with your full index (tags, notes, favorites, usage and search data) plus the app settings. To restore, quit Chatwerk and copy the backup's index.db over the index database shown below.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Plan limits") {
+                Toggle("Show Claude plan limits in the menu bar", isOn: $showPlanLimits)
+                    .onChange(of: showPlanLimits) { _, on in
+                        if on { state.refreshPlanUsage(force: true) }
+                    }
+                Text("Shows the same numbers as Claude Code's /usage — your 5-hour window and weekly utilization with reset times. Chatwerk reads Claude Code's own login token from your Keychain (macOS asks once; choose “Always Allow”) and talks only to api.anthropic.com.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

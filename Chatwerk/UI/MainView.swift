@@ -323,6 +323,14 @@ struct SessionListView: View {
     @ViewBuilder
     private func menuItems(for session: SessionInfo) -> some View {
         Button("Continue in \(state.terminalKind.rawValue)") { state.open(session) }
+        let others = TerminalKind.installed.filter { $0 != state.terminalKind }
+        if !others.isEmpty {
+            Menu("Continue in…") {
+                ForEach(others) { kind in
+                    Button(kind.rawValue) { state.open(session, in: kind) }
+                }
+            }
+        }
         Button("Copy Resume Command") { state.copyCommand(session) }
         Divider()
         Button(session.favorite ? "Remove from Favorites" : "Add to Favorites") {
