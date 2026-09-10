@@ -248,12 +248,15 @@ private struct AdvancedSettingsTab: View {
         panel.canCreateDirectories = true
         panel.prompt = "Export Here"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let folder = try state.exportBackup(to: url)
-            backupResult = "Backup written to “\(folder.lastPathComponent)”."
-            NSWorkspace.shared.activateFileViewerSelecting([folder])
-        } catch {
-            backupResult = "Backup failed: \(error.localizedDescription)"
+        backupResult = "Exporting…"
+        Task {
+            do {
+                let folder = try await state.exportBackup(to: url)
+                backupResult = "Backup written to “\(folder.lastPathComponent)”."
+                NSWorkspace.shared.activateFileViewerSelecting([folder])
+            } catch {
+                backupResult = "Backup failed: \(error.localizedDescription)"
+            }
         }
     }
 }

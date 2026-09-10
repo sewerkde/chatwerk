@@ -27,7 +27,8 @@ final class AppState: ObservableObject {
     @Published var retentionDays: Int = 30
 
     let db: Database
-    private var indexer: Indexer?
+    private var indexerRunning = false
+    private var indexerRerunRequested = false
     private var refreshTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var lastScanSignature: String = ""
@@ -127,13 +128,17 @@ final class AppState: ObservableObject {
     // MARK: - Background scan / index / live poll
 
     private func startBackgroundWork() {
-        guard !claudeDirMissing else { return }
-        rescanAndReload(fullIndex: true)
+        if !claudeDirMissing { rescanAndReload(fullIndex: true) }
 
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 guard let self else { return }
+                // Claude Code may get installed (or first used) while we run.
+                if self.claudeDirMissing {
+                    guard ClaudePaths.exists else { continue }
+                    self.claudeDirMissing = false
+                }
                 self.refreshLive()
                 await self.rescanIfChanged()
             }
@@ -215,19 +220,29 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Single-flight: at most one indexer touches the database at a time.
+    /// Overlapping runs could both start from the same stale byte offset and
+    /// index (and bill) a chunk twice; a request that arrives mid-run just
+    /// schedules one more pass after the current one.
     private func runIndexer() async {
-        let database = db
-        let indexer = Indexer(db: database)
-        self.indexer?.cancel()
-        self.indexer = indexer
-        indexer.progress = { [weak self] done, total in
-            Task { @MainActor [weak self] in
-                self?.indexProgress = done >= total ? nil : (done, total)
-            }
+        if indexerRunning {
+            indexerRerunRequested = true
+            return
         }
-        await Task.detached(priority: .background) {
-            indexer.runOnce()
-        }.value
+        indexerRunning = true
+        repeat {
+            indexerRerunRequested = false
+            let indexer = Indexer(db: db)
+            indexer.progress = { [weak self] done, total in
+                Task { @MainActor [weak self] in
+                    self?.indexProgress = done >= total ? nil : (done, total)
+                }
+            }
+            await Task.detached(priority: .background) {
+                indexer.runOnce()
+            }.value
+        } while indexerRerunRequested
+        indexerRunning = false
         indexProgress = nil
         // New content may satisfy the current search.
         if !searchText.isEmpty { performSearch() }
@@ -441,7 +456,7 @@ final class AppState: ObservableObject {
 
     /// Writes a dated backup folder: a consistent copy of the index database
     /// (tags, notes, favorites, usage, search index) plus the app settings.
-    func exportBackup(to directory: URL) throws -> URL {
+    func exportBackup(to directory: URL) async throws -> URL {
         let stamp: String = {
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd HH.mm"
@@ -449,12 +464,17 @@ final class AppState: ObservableObject {
         }()
         let folder = directory.appendingPathComponent("Chatwerk Backup \(stamp)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try db.backup(to: folder.appendingPathComponent("index.db"))
+        let database = db
+        let dbURL = folder.appendingPathComponent("index.db")
+        try await Task.detached(priority: .userInitiated) {
+            try database.backup(to: dbURL)
+        }.value
 
         let settingKeys = ["terminalKind", "claudeCommand", "showMenuBarExtra",
                            "notifyWhenReady", "notifyWithBanner", "notifyWithSound",
                            "readySound", "appearance", "accentName", "claudeDataDir",
-                           "showInfoPanel", "transcriptNewestFirst"]
+                           "showInfoPanel", "transcriptNewestFirst",
+                           "didOnboard", "warpCopyHintShown"]
         var settings: [String: Any] = [:]
         for key in settingKeys {
             if let value = UserDefaults.standard.object(forKey: key) { settings[key] = value }
@@ -497,11 +517,15 @@ final class AppState: ObservableObject {
     }
 
     func archive(_ session: SessionInfo, to dir: URL) {
-        do {
-            let zip = try Cleaner.archive(session: session, to: dir)
-            alertMessage = "Archived to \(zip.lastPathComponent)"
-        } catch {
-            alertMessage = error.localizedDescription
+        Task {
+            // Zipping a large transcript takes seconds — keep the UI responsive.
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try Cleaner.archive(session: session, to: dir) }
+            }.value
+            switch result {
+            case .success(let zip): alertMessage = "Archived to \(zip.lastPathComponent)"
+            case .failure(let error): alertMessage = error.localizedDescription
+            }
         }
     }
 
@@ -542,14 +566,23 @@ final class AppState: ObservableObject {
     /// Sums indexed usage into the windows shown in the menu bar. Boundaries
     /// are UTC — the clock the transcripts are written in. This is our own
     /// local estimate; Anthropic does not expose remaining plan quota.
+    private static let utcHourFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    private static let utcDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     func usageSummary() -> UsageSummary {
-        let utc = TimeZone(identifier: "UTC") ?? .current
-        let hourF = DateFormatter()
-        hourF.dateFormat = "yyyy-MM-dd'T'HH"
-        hourF.timeZone = utc
-        let dayF = DateFormatter()
-        dayF.dateFormat = "yyyy-MM-dd"
-        dayF.timeZone = utc
+        let hourF = Self.utcHourFormatter
+        let dayF = Self.utcDayFormatter
 
         let now = Date()
         let today = dayF.string(from: now)
@@ -562,6 +595,9 @@ final class AppState: ObservableObject {
         var summary = UsageSummary()
         var models: [String: (tokens: Int64, cost: Double)] = [:]
         for row in db.hourlyRows(since: fetchFrom) {
+            // Only real date keys: a placeholder sorts after every date and
+            // would land in every window.
+            guard row.hour.first?.isNumber == true else { continue }
             let tokens = row.input + row.output + row.cacheRead + row.cacheWrite
             let cost = Pricing.cost(model: row.model, input: row.input, output: row.output,
                                     cacheRead: row.cacheRead, cacheWrite: row.cacheWrite,

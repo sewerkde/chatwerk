@@ -23,8 +23,9 @@ enum LiveSessions {
                   let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let sessionId = obj["sessionId"] as? String,
                   let pid = (obj["pid"] as? NSNumber)?.int32Value else { continue }
-            // Stale record check: is the process still alive?
-            guard kill(pid, 0) == 0 else { continue }
+            // Stale record check: is the process still alive? EPERM means it
+            // exists but belongs to another user (e.g. claude run via sudo).
+            guard pid > 0, kill(pid, 0) == 0 || errno == EPERM else { continue }
             out[sessionId] = Live(sessionId: sessionId, pid: pid,
                                   status: obj["status"] as? String,
                                   cwd: obj["cwd"] as? String)

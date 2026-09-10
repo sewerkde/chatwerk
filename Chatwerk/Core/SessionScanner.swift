@@ -17,16 +17,26 @@ struct SessionScanner {
         ) else { return 0 }
 
         var allPaths: [String] = []
+        // If any folder or file couldn't be read, the path list is incomplete —
+        // pruning "missing" sessions then would drop healthy rows (and their
+        // index) just because of a transient read error.
+        var complete = true
         for dir in projectDirs {
             guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { continue }
             let projectDir = dir.lastPathComponent
             guard let files = try? fm.contentsOfDirectory(
                 at: dir, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey],
                 options: [.skipsHiddenFiles]
-            ) else { continue }
+            ) else {
+                complete = false
+                continue
+            }
             for file in files where file.pathExtension == "jsonl" {
                 let uuid = file.deletingPathExtension().lastPathComponent
-                guard let rv = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey]) else { continue }
+                guard let rv = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey]) else {
+                    complete = false
+                    continue
+                }
                 let size = Int64(rv.fileSize ?? 0)
                 let mtime = rv.contentModificationDate?.timeIntervalSince1970 ?? 0
                 let btime = rv.creationDate?.timeIntervalSince1970
@@ -35,7 +45,7 @@ struct SessionScanner {
                                      size: size, modifiedAt: mtime, createdAt: btime)
             }
         }
-        db.deleteSessionsNotIn(paths: allPaths)
+        if complete { db.deleteSessionsNotIn(paths: allPaths) }
         return allPaths.count
     }
 
@@ -45,14 +55,16 @@ struct SessionScanner {
             let d = Self.extractDetails(path: row.path)
             db.updateSessionDetails(
                 uuid: row.uuid, projectDir: row.projectDir,
-                cwd: d.cwd, title: d.title, firstPrompt: d.firstPrompt, lastPrompt: d.lastPrompt,
+                cwd: d.cwd, title: d.title, fallbackTitle: d.fallbackTitle,
+                firstPrompt: d.firstPrompt, lastPrompt: d.lastPrompt,
                 gitBranch: d.gitBranch, model: d.model, detailMtime: row.modifiedAt)
         }
     }
 
     struct Details {
         var cwd: String?
-        var title: String?
+        var title: String?          // Claude Code's ai-title, if the tail window has one
+        var fallbackTitle: String?  // derived from the first prompt
         var firstPrompt: String?
         var lastPrompt: String?
         var gitBranch: String?
@@ -114,7 +126,9 @@ struct SessionScanner {
             }
         }
 
-        if d.title == nil { d.title = d.firstPrompt.map { JSONL.cleanPrompt($0, maxLength: 100) } }
+        // Only a fallback: a stored ai-title from an earlier parse must win
+        // over a prompt-derived title when the tail no longer holds one.
+        if d.title == nil { d.fallbackTitle = d.firstPrompt.map { JSONL.cleanPrompt($0, maxLength: 100) } }
         return d
     }
 }

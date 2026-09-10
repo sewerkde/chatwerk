@@ -56,7 +56,10 @@ enum Cleaner {
 
     /// Permanently remove a session and its sidecars from disk.
     static func delete(session: SessionInfo, liveSessionIds: Set<String>) throws {
-        guard !liveSessionIds.contains(session.uuid) else { throw CleanError.sessionIsLive }
+        // The caller's set is a poll snapshot; re-check right before deleting
+        // in case the session was resumed in the meantime.
+        guard !liveSessionIds.contains(session.uuid),
+              LiveSessions.current()[session.uuid] == nil else { throw CleanError.sessionIsLive }
         let fm = FileManager.default
         for url in ClaudePaths.sidecarPaths(projectDir: session.projectDir, uuid: session.uuid)
         where fm.fileExists(atPath: url.path) {

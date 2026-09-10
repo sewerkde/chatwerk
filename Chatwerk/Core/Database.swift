@@ -99,11 +99,12 @@ final class Database {
         try? execRaw("ALTER TABLE sessions ADD COLUMN last_usage_msg_id TEXT")
         try? execRaw("ALTER TABLE tags ADD COLUMN grp TEXT")
 
-        // Schema v5 adds hour-granularity usage (for the menu bar's 5h-window
-        // and daily summaries); force one full re-index so it backfills.
+        // Schema v6: before the indexer became single-flight, overlapping runs
+        // could index a chunk twice and inflate usage. Rebuild the index (and
+        // the hour-granularity usage added in v5) once from the transcripts.
         var version: Int32 = 0
         run("PRAGMA user_version") { s in version = sqlite3_column_int(s, 0) }
-        if version < 5 {
+        if version < 6 {
             try execRaw("""
             DELETE FROM fts;
             DELETE FROM usage_daily;
@@ -111,7 +112,7 @@ final class Database {
             UPDATE sessions SET indexed_offset=0, message_count=0, last_usage_msg_id=NULL,
                 in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0,
                 cache_write_1h_tokens=0;
-            PRAGMA user_version = 5;
+            PRAGMA user_version = 6;
             """)
         }
     }
@@ -202,15 +203,19 @@ final class Database {
         }
     }
 
+    /// A parse that didn't find a field (e.g. the tail window no longer holds
+    /// an ai-title line) keeps the stored value instead of erasing it.
+    /// `fallbackTitle` only fills a title that was never set.
     func updateSessionDetails(uuid: String, projectDir: String, cwd: String?, title: String?,
-                              firstPrompt: String?, lastPrompt: String?, gitBranch: String?,
-                              model: String?, detailMtime: Double) {
+                              fallbackTitle: String?, firstPrompt: String?, lastPrompt: String?,
+                              gitBranch: String?, model: String?, detailMtime: Double) {
         queue.sync {
             _ = run("""
-            UPDATE sessions SET cwd=?, title=?, first_prompt=?, last_prompt=?,
+            UPDATE sessions SET cwd=COALESCE(?, cwd), title=COALESCE(?, title, ?),
+                first_prompt=COALESCE(?, first_prompt), last_prompt=COALESCE(?, last_prompt),
                 git_branch=COALESCE(?, git_branch), model=COALESCE(?, model), detail_mtime=?
             WHERE uuid=? AND project_dir=?
-            """, [cwd, title, firstPrompt, lastPrompt, gitBranch, model, detailMtime, uuid, projectDir])
+            """, [cwd, title, fallbackTitle, firstPrompt, lastPrompt, gitBranch, model, detailMtime, uuid, projectDir])
         }
     }
 
@@ -281,12 +286,22 @@ final class Database {
     func resetIndex(uuid: String, projectDir: String) {
         queue.sync {
             run("DELETE FROM fts WHERE uuid=?", [uuid])
-            run("UPDATE sessions SET indexed_offset=0, message_count=0 WHERE uuid=? AND project_dir=?", [uuid, projectDir])
+            // Per-session usage restarts too, or a re-index would add on top.
+            // (The global day/hour tables can't be unwound per session.)
+            run("""
+            UPDATE sessions SET indexed_offset=0, message_count=0, last_usage_msg_id=NULL,
+                in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0, cache_write_1h_tokens=0
+            WHERE uuid=? AND project_dir=?
+            """, [uuid, projectDir])
         }
     }
 
-    func appendIndexed(uuid: String, projectDir: String, entries: [(role: String, text: String)],
-                       newOffset: Int64, addedMessages: Int) {
+    /// Commits one indexed chunk atomically: FTS rows, the advanced byte
+    /// offset and the chunk's token usage land together or not at all — a
+    /// crash between them would otherwise leave the offset past usage that
+    /// was never recorded.
+    func commitChunk(uuid: String, projectDir: String, entries: [(role: String, text: String)],
+                     newOffset: Int64, addedMessages: Int, usage: ChunkUsage) {
         queue.sync {
             transaction {
                 var ok = true
@@ -295,6 +310,27 @@ final class Database {
                 }
                 ok = run("UPDATE sessions SET indexed_offset=?, message_count=message_count+? WHERE uuid=? AND project_dir=?",
                          [newOffset, addedMessages, uuid, projectDir]) && ok
+                guard usage.session.total > 0 else { return ok }
+                let t = usage.session
+                ok = run("""
+                UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
+                    cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?,
+                    cache_write_1h_tokens=cache_write_1h_tokens+?,
+                    last_usage_msg_id=COALESCE(?, last_usage_msg_id)
+                WHERE uuid=? AND project_dir=?
+                """, [t.input, t.output, t.cacheRead, t.cacheWrite, t.cacheWrite1h, usage.lastMessageId, uuid, projectDir]) && ok
+                for (table, column, buckets) in [("usage_daily", "day", usage.daily), ("usage_hourly", "hour", usage.hourly)] {
+                    for (key, b) in buckets {
+                        ok = run("""
+                        INSERT INTO \(table) (\(column), model, input, output, cache_read, cache_write, cache_write_1h)
+                        VALUES (?,?,?,?,?,?,?)
+                        ON CONFLICT(\(column), model) DO UPDATE SET
+                            input=input+excluded.input, output=output+excluded.output,
+                            cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
+                            cache_write_1h=cache_write_1h+excluded.cache_write_1h
+                        """, [key.period, key.model, b.input, b.output, b.cacheRead, b.cacheWrite, b.cacheWrite1h]) && ok
+                    }
+                }
                 return ok
             }
         }
@@ -312,44 +348,37 @@ final class Database {
         var cacheWrite1h: Int64
     }
 
-    func recordUsage(uuid: String, projectDir: String,
-                     input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64,
-                     lastMessageId: String?,
-                     daily: [(day: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)],
-                     hourly: [(hour: String, model: String, input: Int64, output: Int64, cacheRead: Int64, cacheWrite: Int64, cacheWrite1h: Int64)]) {
-        guard input + output + cacheRead + cacheWrite > 0 else { return }
-        queue.sync {
-            transaction {
-                var ok = run("""
-                UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
-                    cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?,
-                    cache_write_1h_tokens=cache_write_1h_tokens+?,
-                    last_usage_msg_id=COALESCE(?, last_usage_msg_id)
-                WHERE uuid=? AND project_dir=?
-                """, [input, output, cacheRead, cacheWrite, cacheWrite1h, lastMessageId, uuid, projectDir])
-                for d in daily {
-                    ok = run("""
-                    INSERT INTO usage_daily (day, model, input, output, cache_read, cache_write, cache_write_1h)
-                    VALUES (?,?,?,?,?,?,?)
-                    ON CONFLICT(day, model) DO UPDATE SET
-                        input=input+excluded.input, output=output+excluded.output,
-                        cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
-                        cache_write_1h=cache_write_1h+excluded.cache_write_1h
-                    """, [d.day, d.model, d.input, d.output, d.cacheRead, d.cacheWrite, d.cacheWrite1h]) && ok
-                }
-                for h in hourly {
-                    ok = run("""
-                    INSERT INTO usage_hourly (hour, model, input, output, cache_read, cache_write, cache_write_1h)
-                    VALUES (?,?,?,?,?,?,?)
-                    ON CONFLICT(hour, model) DO UPDATE SET
-                        input=input+excluded.input, output=output+excluded.output,
-                        cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
-                        cache_write_1h=cache_write_1h+excluded.cache_write_1h
-                    """, [h.hour, h.model, h.input, h.output, h.cacheRead, h.cacheWrite, h.cacheWrite1h]) && ok
-                }
-                return ok
-            }
+    /// Token counts for one slice of usage (a session, a day, an hour).
+    struct UsageBucket {
+        var input: Int64 = 0
+        var output: Int64 = 0
+        var cacheRead: Int64 = 0
+        var cacheWrite: Int64 = 0
+        var cacheWrite1h: Int64 = 0
+
+        var total: Int64 { input + output + cacheRead + cacheWrite }
+
+        mutating func add(_ other: UsageBucket) {
+            input += other.input
+            output += other.output
+            cacheRead += other.cacheRead
+            cacheWrite += other.cacheWrite
+            cacheWrite1h += other.cacheWrite1h
         }
+    }
+
+    /// A day ("yyyy-MM-dd") or hour ("yyyy-MM-ddTHH") bucket for one model.
+    struct PeriodKey: Hashable {
+        var period: String
+        var model: String
+    }
+
+    /// Everything one indexed chunk contributes to the usage tables.
+    struct ChunkUsage {
+        var session = UsageBucket()
+        var lastMessageId: String?
+        var daily: [PeriodKey: UsageBucket] = [:]
+        var hourly: [PeriodKey: UsageBucket] = [:]
     }
 
     struct HourRow {
@@ -550,12 +579,24 @@ final class Database {
     /// Writes a compact, consistent single-file copy of the whole database
     /// (WAL checkpointed) — safe to run while the app is open.
     func backup(to url: URL) throws {
-        try? FileManager.default.removeItem(at: url)
+        // Write beside the target first so a failed backup never destroys an
+        // existing one, then swap it into place.
+        let fm = FileManager.default
+        let partial = url.deletingLastPathComponent().appendingPathComponent(".\(url.lastPathComponent).partial")
+        try? fm.removeItem(at: partial)
         var ok = false
         queue.sync {
-            ok = run("VACUUM INTO ?", [url.path])
+            ok = run("VACUUM INTO ?", [partial.path])
         }
-        guard ok else { throw DBError.exec("Could not write the backup file.") }
+        guard ok else {
+            try? fm.removeItem(at: partial)
+            throw DBError.exec("Could not write the backup file.")
+        }
+        if fm.fileExists(atPath: url.path) {
+            _ = try fm.replaceItemAt(url, withItemAt: partial)
+        } else {
+            try fm.moveItem(at: partial, to: url)
+        }
     }
 
     func setTag(uuid: String, tagId: Int64, on: Bool) {
