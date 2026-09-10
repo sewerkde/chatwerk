@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Generates a fake CLAUDE_CONFIG_DIR with synthetic sessions for README screenshots.
 No real data anywhere — invented projects, English prompts, plausible usage numbers."""
-import json, os, sys, time, uuid
+import argparse, json, os, uuid
 from datetime import datetime, timedelta, timezone
 
-BASE = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else "~/chatwerk-demo-data")
+parser = argparse.ArgumentParser(description="Generate a fake Claude Code data folder (CLAUDE_CONFIG_DIR) with synthetic sessions for screenshots. Point Chatwerk's Settings → Data folder at it.")
+parser.add_argument("out", nargs="?", default="~/chatwerk-demo-data", help="output folder (default: %(default)s)")
+parser.add_argument("--busy-pid", type=int, help="pid of a running process to show one session as working")
+parser.add_argument("--idle-pid", type=int, help="pid of a running process to show one session as waiting for you")
+args = parser.parse_args()
+
+BASE = os.path.expanduser(args.out)
 PROJECTS = os.path.join(BASE, "projects")
 SESSIONS = os.path.join(BASE, "sessions")
 os.makedirs(PROJECTS, exist_ok=True)
@@ -135,8 +141,9 @@ def live(pid, sid, status, cwd):
     with open(os.path.join(SESSIONS, f"{pid}.json"), "w") as f:
         f.write(J({"sessionId": sid, "pid": int(pid), "status": status, "cwd": cwd}))
 
-busy_pid, idle_pid = sys.argv[2], sys.argv[3]
-live(busy_pid, sessions["checkout"], "busy", "/Users/demo/Projects/acme-webshop")
-live(idle_pid, sessions["webhooks"], "idle", "/Users/demo/Projects/acme-webshop")
+if args.busy_pid:
+    live(args.busy_pid, sessions["checkout"], "busy", "/Users/demo/Projects/acme-webshop")
+if args.idle_pid:
+    live(args.idle_pid, sessions["webhooks"], "idle", "/Users/demo/Projects/acme-webshop")
 
 print(json.dumps(sessions, indent=0))
