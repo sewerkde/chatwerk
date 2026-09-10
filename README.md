@@ -37,7 +37,7 @@ Chatwerk fixes that.
 
 - **📋 Every session, one list** — all sessions from all projects with automatic titles, grouped by time (Today / Yesterday / This Week / …), with size, message count and last-prompt preview per row — plus Claude Code's auto-cleanup countdown per session, so you see what's about to expire
 - **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index, built incrementally in the background). Press **⌘K** for a Spotlight-style palette: recents when empty, live results as you type, ↩ to resume
-- **🏷 Tags, notes & favorites** — organize sessions your way; an **Unsorted** smart filter surfaces chats you haven't organized yet, so nothing gets lost. Stored only in Chatwerk's own database, never inside `~/.claude`
+- **🏷 Tags, notes & favorites** — color-coded tags you can rename, group and filter (hundreds stay navigable); an **Unsorted** smart filter surfaces chats you haven't organized yet, so nothing gets lost. Stored only in Chatwerk's own database, never inside `~/.claude`
 - **▶️ One-click resume** — double-click (or ⌘↩) and your terminal opens in the right project directory running `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp** (Warp opens with the resume command on your clipboard — paste and go)
 - **🟢 Live status** — running sessions are badged in real time: green while Claude is busy, orange row highlight the moment Claude finishes and waits for you
 - **🔔 Ready alerts** — optional sound (your system's alert tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
@@ -45,7 +45,7 @@ Chatwerk fixes that.
 - **💰 Token & cost dashboard** — token usage per model with estimated API-list-price cost (cache-aware: reads 0.1×, 1h-TTL writes 2×, subagents included), a 30-day daily-cost chart and per-session token counts. Subscription users get a "what would this cost on the API" insight
 - **📊 Storage & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps
 - **🎨 Themes** — light/dark/system plus 8 accent colors, all dark-mode tuned
-- **🖥 Menu bar** — recent sessions and alert toggle one click away
+- **🖥 Menu bar** — a panel with your usage and estimated cost (last 5h, today, this week, this month, per model), recent sessions and the alert toggle
 - **🔒 100% local** — Chatwerk reads your data from disk and never sends anything anywhere. It asks for at most two permissions: the one-time macOS Automation prompt to drive your terminal, and (only if you enable ready-alerts) notification permission
 
 ## Install
