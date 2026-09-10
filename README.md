@@ -43,7 +43,7 @@ Chatwerk fixes that.
 - **🔔 Ready alerts** — optional sound (your system's alert tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
 - **📄 Transcript viewer** — read any chat without resuming it: newest exchange on top (flippable), chat-style bubbles with role avatars, day separators, inline markdown + code blocks rendered, tool runs collapsed into single "background steps" rows. Export as Markdown
 - **💰 Token & cost dashboard** — token usage per model with estimated API-list-price cost (cache-aware: reads 0.1×, 1h-TTL writes 2×, subagents included), a 30-day daily-cost chart and per-session token counts. Subscription users get a "what would this cost on the API" insight
-- **📊 Storage & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps
+- **📊 Storage & cleanup** — sessions and disk usage per project, largest transcripts, safe archive (zip) and delete including every sidecar folder Claude Code keeps, plus one-click backup export of your tags, notes and index
 - **🎨 Themes** — light/dark/system plus 8 accent colors, all dark-mode tuned
 - **🖥 Menu bar** — a panel with your usage and estimated cost (last 5h, today, this week, this month, per model), recent sessions and the alert toggle
 - **🔒 100% local** — Chatwerk reads your data from disk and never sends anything anywhere. It asks for at most two permissions: the one-time macOS Automation prompt to drive your terminal, and (only if you enable ready-alerts) notification permission
