@@ -38,7 +38,7 @@ Chatwerk fixes that.
 - **📋 Every session, one list** — all sessions from all projects with automatic titles, grouped by time (Today / Yesterday / This Week / …), with size, message count and last-prompt preview per row — plus Claude Code's auto-cleanup countdown per session, so you see what's about to expire
 - **🔍 Full-text search** — searches *inside* your chats (SQLite FTS5 index, built incrementally in the background). Press **⌘K** for a Spotlight-style palette: recents when empty, live results as you type, ↩ to resume
 - **🏷 Tags, notes & favorites** — organize sessions your way; an **Unsorted** smart filter surfaces chats you haven't organized yet, so nothing gets lost. Stored only in Chatwerk's own database, never inside `~/.claude`
-- **▶️ One-click resume** — double-click (or ⌘↩) and your terminal opens in the right project directory running `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp** (Warp via Launch Configurations — the command runs automatically)
+- **▶️ One-click resume** — double-click (or ⌘↩) and your terminal opens in the right project directory running `claude --resume <id>`. Supports **Terminal.app, iTerm2, Ghostty and Warp** (Warp opens with the resume command on your clipboard — paste and go)
 - **🟢 Live status** — running sessions are badged in real time: green while Claude is busy, orange row highlight the moment Claude finishes and waits for you
 - **🔔 Ready alerts** — optional sound (your system's alert tones) and notification banner when Claude finishes responding; click the banner to jump straight to that chat
 - **📄 Transcript viewer** — read any chat without resuming it: newest exchange on top (flippable), chat-style bubbles with role avatars, day separators, inline markdown + code blocks rendered, tool runs collapsed into single "background steps" rows. Export as Markdown
@@ -73,7 +73,7 @@ cd chatwerk
 make app          # builds Release → dist/Chatwerk.app
 ```
 
-Or run `xcodegen generate` and open `Chatwerk.xcodeproj` in Xcode. The app is pure Swift/SwiftUI with **zero third-party dependencies** — the full text index uses the system SQLite's FTS5.
+Local builds are ad-hoc signed; release builds are signed and notarized with `make notarize` (needs a Developer ID certificate). Or run `xcodegen generate` and open `Chatwerk.xcodeproj` in Xcode. The app is pure Swift/SwiftUI with **zero third-party dependencies** — the full text index uses the system SQLite's FTS5.
 
 ## How it works
 
@@ -92,7 +92,7 @@ Your notes, tags, favorites and custom titles live only in Chatwerk's database. 
 At most two: permission to send your terminal app the resume command (macOS "Automation" prompt on first use), and — only if you enable ready-alerts — the standard notification permission for the banner. Chatwerk reads `~/.claude` directly, which requires no permission, and never touches anything else.
 
 **I run Claude Code with `CLAUDE_CONFIG_DIR` — will it find my sessions?**
-Yes: point Settings → *Data folder* at your custom directory. The `claude` binary path is configurable there too.
+Yes: point Settings → Advanced → *Data folder* at your custom directory. If `claude` isn't on your terminal's PATH, set its full path under Settings → General → *Claude command*.
 
 **Why does deleting ask about "sidecar data"?**
 A session is more than its transcript: Claude Code also keeps file-edit backups, background task state and subagent transcripts. Chatwerk removes all of it so nothing is left behind.

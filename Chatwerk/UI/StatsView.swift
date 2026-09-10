@@ -331,6 +331,7 @@ struct StatsView: View {
                         state.selectedSessionId = session.id
                         state.filter = .all
                         state.searchText = ""
+                        state.searchResults = nil
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 1) {

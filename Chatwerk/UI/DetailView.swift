@@ -16,9 +16,9 @@ struct DetailView: View {
     @State private var tagSearch = ""
 
     private var inspectorTags: [TagInfo] {
-        let query = tagSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        let query = tagSearch.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return state.tags }
-        return state.tags.filter { $0.name.lowercased().contains(query) }
+        return state.tags.filter { $0.name.localizedStandardContains(query) }
     }
     @AppStorage("showInfoPanel") private var showInfoPanel = false
     @AppStorage("transcriptNewestFirst") private var newestFirst = true
@@ -339,12 +339,12 @@ struct DetailView: View {
                     .truncationMode(.middle)
                 if copyable {
                     Button {
-                        state.copyCommand(current)
+                        TerminalLauncher.copyToClipboard(value)
                     } label: {
                         Image(systemName: "doc.on.doc").imageScale(.small)
                     }
                     .buttonStyle(.plain)
-                    .help("Copy resume command")
+                    .help("Copy to clipboard")
                 }
             }
         }
@@ -509,8 +509,14 @@ struct DetailView: View {
     private func exportMarkdown() {
         guard let page = transcript else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(current.displayTitle.prefix(40)).md"
+        let safeName = String(current.displayTitle.prefix(40))
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        panel.nameFieldStringValue = "\(safeName).md"
         panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText]
+        if page.truncatedHead {
+            panel.message = "Long session — only the most recent \(page.entries.count) entries are loaded, and only those will be exported."
+        }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let md = TranscriptLoader.exportMarkdown(session: current, page: page)
         do {

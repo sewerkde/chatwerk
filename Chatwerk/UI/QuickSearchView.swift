@@ -12,6 +12,7 @@ struct QuickSearchView: View {
     @State private var results: [SessionInfo] = []
     @State private var selectedIndex = 0
     @State private var searching = false
+    @State private var searchTask: Task<Void, Never>?
     @FocusState private var fieldFocused: Bool
 
     private var accent: Color { Theme.accent(accentName) }
@@ -154,6 +155,7 @@ struct QuickSearchView: View {
     }
 
     private func searchNow() {
+        searchTask?.cancel()
         guard !isRecents else {
             results = []
             selectedIndex = 0
@@ -162,9 +164,9 @@ struct QuickSearchView: View {
         }
         searching = true
         let q = query
-        Task {
+        searchTask = Task {
             try? await Task.sleep(nanoseconds: 200_000_000)
-            guard q == query else { return }
+            guard !Task.isCancelled, q == query else { return }
             let found = await state.quickSearch(q)
             guard q == query else { return }
             results = found

@@ -55,6 +55,7 @@ struct ChatwerkApp: App {
         MenuBarExtra("Chatwerk", image: "MenuBarIcon", isInserted: $showMenuBarExtra) {
             MenuBarPanel()
                 .environmentObject(state)
+                .preferredColorScheme(Theme.scheme(appearanceRaw))
                 .tint(Theme.accent(accentName))
         }
         .menuBarExtraStyle(.window)

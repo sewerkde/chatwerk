@@ -114,7 +114,7 @@ struct MainView: View {
                 ContentUnavailableView(
                     "No Claude Code data found",
                     systemImage: "questionmark.folder",
-                    description: Text("Chatwerk reads sessions from ~/.claude/projects. Install and use Claude Code first — then relaunch Chatwerk.")
+                    description: Text("Chatwerk reads sessions from ~/.claude/projects. Install and use Claude Code — your sessions will show up here automatically.")
                 )
                 .background(.background)
             }
