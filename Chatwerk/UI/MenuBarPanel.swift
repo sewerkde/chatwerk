@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// The menu bar panel: plan limits with progress bars, local usage, recent
+/// The menu bar panel: local usage with a per-model breakdown, recent
 /// sessions and quick actions. Rendered as a window-style extra because the
 /// default menu grays out informational rows as if they were disabled.
 struct MenuBarPanel: View {
@@ -9,16 +9,9 @@ struct MenuBarPanel: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @AppStorage("notifyWhenReady") private var notifyWhenReady = true
-    @AppStorage("accentName") private var accentName: String = "Sewerk Orange"
-
-    private var accent: Color { Theme.accent(accentName) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if state.showPlanLimits {
-                planSection
-                Divider()
-            }
             usageSection
             Divider()
             recentsSection
@@ -27,54 +20,6 @@ struct MenuBarPanel: View {
         }
         .padding(12)
         .frame(width: 320)
-        .onAppear { state.refreshPlanUsage() }
-    }
-
-    // MARK: - Plan limits
-
-    private static let isoParser = ISO8601DateFormatter()
-
-    @ViewBuilder
-    private var planSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Plan Limits")
-            if let plan = state.planUsage {
-                planRow("5h window", plan.fiveHour)
-                planRow("This week", plan.sevenDay)
-                if let opus = plan.sevenDayOpus, opus.utilization != nil {
-                    planRow("Week · Opus", opus)
-                }
-                if let sonnet = plan.sevenDaySonnet, sonnet.utilization != nil {
-                    planRow("Week · Sonnet", sonnet)
-                }
-            } else {
-                Text(state.planUsageError ?? "Loading plan limits…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func planRow(_ label: String, _ window: PlanUsage.Window?) -> some View {
-        let value = window?.utilization ?? 0
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text(label).font(.caption)
-                Spacer()
-                Text(String(format: "%.0f%%", value))
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                if let raw = window?.resetsAt, let date = Self.isoParser.date(from: raw) {
-                    Text("resets \(date.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            ProgressView(value: min(value, 100), total: 100)
-                .tint(value >= 90 ? .red : value >= 70 ? .orange : accent)
-                .controlSize(.small)
-        }
     }
 
     // MARK: - Local usage
