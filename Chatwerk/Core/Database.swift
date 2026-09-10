@@ -504,7 +504,7 @@ final class Database {
     func allTags() -> [TagInfo] {
         queue.sync {
             var out: [TagInfo] = []
-            run("SELECT id, name, color, grp FROM tags ORDER BY name") { s in
+            run("SELECT id, name, color, grp FROM tags ORDER BY name COLLATE NOCASE") { s in
                 out.append(TagInfo(id: sqlite3_column_int64(s, 0),
                                    name: Database.text(s, 1) ?? "",
                                    colorHex: Database.text(s, 2) ?? "#7B61FF",

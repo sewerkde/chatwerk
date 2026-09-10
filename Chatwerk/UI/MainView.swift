@@ -143,12 +143,39 @@ struct SidebarView: View {
     @EnvironmentObject var state: AppState
     @Binding var showNewTag: Bool
     @Binding var editingTag: TagInfo?
-    @State private var tagFilter = ""
+    @State private var filterText = ""
+    @State private var expandedGroups: Set<String> = []
+
+    private var query: String { filterText.trimmingCharacters(in: .whitespaces) }
+    private var isFiltering: Bool { !query.isEmpty }
+
+    /// The filter bar only earns its space once the lists get long.
+    private var showsFilter: Bool {
+        isFiltering || state.tags.count + state.projectGroups.count > 8
+    }
+
+    private var visibleProjects: [ProjectGroup] {
+        guard isFiltering else { return state.projectGroups }
+        return state.projectGroups.filter { $0.name.localizedStandardContains(query) }
+    }
 
     private var visibleTags: [TagInfo] {
-        let query = tagFilter.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !query.isEmpty else { return state.tags }
-        return state.tags.filter { $0.name.lowercased().contains(query) }
+        guard isFiltering else { return state.tags }
+        return state.tags.filter {
+            $0.name.localizedStandardContains(query)
+                || ($0.group ?? "").localizedStandardContains(query)
+        }
+    }
+
+    /// Groups stay as the user left them, but open automatically while a
+    /// filter is active so matches are never hidden inside a closed group.
+    private func groupExpansion(_ title: String) -> Binding<Bool> {
+        Binding(
+            get: { isFiltering || expandedGroups.contains(title) },
+            set: { open in
+                if open { expandedGroups.insert(title) } else { expandedGroups.remove(title) }
+            }
+        )
     }
 
     /// Ungrouped tags first, then one collapsible bucket per group.
@@ -173,6 +200,7 @@ struct SidebarView: View {
             Circle().fill(tag.color).frame(width: 10, height: 10)
         }
         .tag(SidebarFilter.tag(tag.id))
+        .help(tag.group.map { "\(tag.name) · \($0)" } ?? tag.name)
         .contextMenu {
             Button("Edit Tag…") { editingTag = tag }
             Button("Delete Tag", role: .destructive) { state.deleteTag(tag) }
@@ -208,26 +236,30 @@ struct SidebarView: View {
                     .help("Claude Code auto-deletes transcripts after \(state.retentionDays) days of inactivity (cleanupPeriodDays)")
                 }
             }
-            Section("Projects") {
-                ForEach(state.projectGroups) { group in
-                    Label(group.name, systemImage: "folder.fill")
-                        .badge(group.sessionCount)
-                        .tag(SidebarFilter.project(group.key))
-                        .help(group.key)
+            if !visibleProjects.isEmpty {
+                Section("Projects") {
+                    ForEach(visibleProjects) { group in
+                        Label(group.name, systemImage: "folder.fill")
+                            .badge(group.sessionCount)
+                            .tag(SidebarFilter.project(group.key))
+                            .help(group.key)
+                    }
                 }
             }
+            if isFiltering && visibleProjects.isEmpty && visibleTags.isEmpty {
+                Text("No projects or tags match “\(query)”")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Tags") {
-                if state.tags.count > 10 {
-                    TextField("Filter tags…", text: $tagFilter)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                }
                 ForEach(groupedVisibleTags, id: \.title) { bucket in
                     if bucket.title.isEmpty {
                         ForEach(bucket.tags) { tagRow($0) }
                     } else {
-                        DisclosureGroup(bucket.title) {
+                        DisclosureGroup(isExpanded: groupExpansion(bucket.title)) {
                             ForEach(bucket.tags) { tagRow($0) }
+                        } label: {
+                            Text(bucket.title)
                         }
                     }
                 }
@@ -241,6 +273,11 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if showsFilter {
+                SidebarFilterField(text: $filterText)
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 Divider()
@@ -263,6 +300,39 @@ struct SidebarView: View {
             }
             .background(.bar)
         }
+    }
+}
+
+/// Xcode-style filter bar for the sidebar: narrows Projects and Tags as you
+/// type (case- and accent-insensitive); ✕ or Escape clears it.
+private struct SidebarFilterField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .foregroundStyle(text.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+            TextField("Filter projects & tags", text: $text)
+                .textFieldStyle(.plain)
+                .onExitCommand { text = "" }
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear filter")
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7))
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
     }
 }
 
