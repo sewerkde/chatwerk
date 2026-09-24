@@ -204,7 +204,7 @@ private struct AdvancedSettingsTab: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Text("Exports a dated folder with your full index (tags, notes, favorites, usage and search data) plus the app settings. To restore, quit Chatwerk and copy the backup's index.db over the index database shown below.")
+                Text("Exports a dated folder with your full index (tags, notes, favorites, usage and search data) plus the app settings. The search data holds the text of your chats — including anything sensitive you pasted into them — so keep the backup private. To restore, quit Chatwerk and copy the backup's index.db over the index database shown below.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -247,6 +247,7 @@ private struct AdvancedSettingsTab: View {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.prompt = "Export Here"
+        panel.message = "The backup contains the text of your chats — choose a private location."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         backupResult = "Exporting…"
         Task {

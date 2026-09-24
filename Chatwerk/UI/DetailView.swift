@@ -532,6 +532,7 @@ struct DetailView: View {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.prompt = "Archive Here"
+        panel.message = "The archive contains the full, unencrypted transcript — choose a private location."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         state.archive(current, to: url)
     }
@@ -699,13 +700,23 @@ struct MessageBody: View {
     }
 
     private static func inlineMarkdown(_ s: String) -> AttributedString {
-        if let attr = try? AttributedString(
+        guard var attr = try? AttributedString(
             markdown: s,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) {
-            return attr
+        ) else {
+            return AttributedString(s)
         }
-        return AttributedString(s)
+        // Transcript text is model output that prompt injection can steer:
+        // a link must not open local files or hand a URL to another app.
+        let unsafeLinks = attr.runs.compactMap { run -> Range<AttributedString.Index>? in
+            guard let url = run.link else { return nil }
+            let scheme = url.scheme?.lowercased()
+            return scheme == "http" || scheme == "https" ? nil : run.range
+        }
+        for range in unsafeLinks {
+            attr[range].link = nil
+        }
+        return attr
     }
 }
 

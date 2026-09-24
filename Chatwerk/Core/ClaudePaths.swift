@@ -24,7 +24,11 @@ enum ClaudePaths {
     }
 
     /// Everything on disk that belongs to one session (for delete/archive).
+    /// Empty for anything that isn't a plain folder name + session id, so a
+    /// crafted name can never point a delete at a parent folder.
     static func sidecarPaths(projectDir: String, uuid: String) -> [URL] {
+        guard isSessionId(uuid), !projectDir.isEmpty, !projectDir.contains("/"),
+              projectDir != ".", projectDir != ".." else { return [] }
         let proj = projectsDir.appendingPathComponent(projectDir)
         return [
             proj.appendingPathComponent("\(uuid).jsonl"),

@@ -33,6 +33,7 @@ struct SessionScanner {
             }
             for file in files where file.pathExtension == "jsonl" {
                 let uuid = file.deletingPathExtension().lastPathComponent
+                guard isSessionId(uuid) else { continue }
                 guard let rv = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey]) else {
                     complete = false
                     continue

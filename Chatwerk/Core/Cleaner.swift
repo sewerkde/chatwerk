@@ -5,12 +5,15 @@ enum Cleaner {
 
     enum CleanError: LocalizedError {
         case sessionIsLive
+        case invalidSession
         case zipFailed(String)
 
         var errorDescription: String? {
             switch self {
             case .sessionIsLive:
                 return "This session is currently running in Claude Code. Close it before deleting."
+            case .invalidSession:
+                return "This doesn't look like a Claude Code session, so Chatwerk won't touch it."
             case .zipFailed(let msg):
                 return "Archive failed: \(msg)"
             }
@@ -19,6 +22,7 @@ enum Cleaner {
 
     /// Zip everything belonging to a session into `destinationDir`.
     static func archive(session: SessionInfo, to destinationDir: URL) throws -> URL {
+        guard isSessionId(session.uuid) else { throw CleanError.invalidSession }
         let fm = FileManager.default
         let existing = ClaudePaths.sidecarPaths(projectDir: session.projectDir, uuid: session.uuid)
             .filter { fm.fileExists(atPath: $0.path) }
@@ -56,6 +60,7 @@ enum Cleaner {
 
     /// Permanently remove a session and its sidecars from disk.
     static func delete(session: SessionInfo, liveSessionIds: Set<String>) throws {
+        guard isSessionId(session.uuid) else { throw CleanError.invalidSession }
         // The caller's set is a poll snapshot; re-check right before deleting
         // in case the session was resumed in the meantime.
         guard !liveSessionIds.contains(session.uuid),
