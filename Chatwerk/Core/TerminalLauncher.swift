@@ -11,10 +11,10 @@ enum TerminalLauncher {
     }
 
     static func open(session: SessionInfo, terminal: TerminalKind, claudeCommand: String) -> LaunchResult {
-        var command = session.resumeCommand
-        if claudeCommand != "claude" {
-            command = command.replacingOccurrences(of: "claude --resume", with: "\(claudeCommand) --resume")
+        guard isSessionId(session.uuid) else {
+            return .failed("Not a valid Claude Code session id:\n\(session.uuid)")
         }
+        let command = session.resumeCommand(claude: claudeCommand)
         if let cwd = session.cwd, !FileManager.default.fileExists(atPath: cwd) {
             return .failed("Project directory no longer exists:\n\(cwd)")
         }

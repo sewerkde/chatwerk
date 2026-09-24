@@ -69,14 +69,15 @@ struct SessionInfo: Identifiable, Hashable {
             && (customTitle ?? "").isEmpty
     }
 
-    var resumeCommand: String {
-        let cd: String
+    /// `claude` is the user's configured command, inserted verbatim so it
+    /// may carry a full path or flags; everything read from disk is quoted.
+    func resumeCommand(claude: String = "claude") -> String {
+        let trimmed = claude.trimmingCharacters(in: .whitespacesAndNewlines)
+        var command = "\(trimmed.isEmpty ? "claude" : trimmed) --resume \(shellQuote(uuid))"
         if let cwd, !cwd.isEmpty {
-            cd = "cd \(shellQuote(cwd)) && "
-        } else {
-            cd = ""
+            command = "cd \(shellQuote(cwd)) && " + command
         }
-        return cd + "claude --resume \(uuid)"
+        return command
     }
 }
 
@@ -150,6 +151,13 @@ enum TerminalKind: String, CaseIterable, Identifiable {
 
 func shellQuote(_ s: String) -> String {
     "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
+
+/// Claude Code names transcripts `<uuid>.jsonl`. A session id comes from a
+/// file name, so anything else found there must never reach a shell command
+/// or a delete path (think `$(…).jsonl` or `...jsonl`).
+func isSessionId(_ s: String) -> Bool {
+    UUID(uuidString: s) != nil
 }
 
 /// User-selectable appearance + accent themes.

@@ -172,10 +172,10 @@ enum TranscriptLoader {
 
     static func exportMarkdown(session: SessionInfo, page: TranscriptPage) -> String {
         var md = "# \(session.displayTitle)\n\n"
-        md += "- Session: `\(session.uuid)`\n"
-        if let cwd = session.cwd { md += "- Project: `\(cwd)`\n" }
+        md += "- Session: \(inlineCode(session.uuid))\n"
+        if let cwd = session.cwd { md += "- Project: \(inlineCode(cwd))\n" }
         md += "- Last activity: \(session.modifiedAt.formatted())\n"
-        md += "- Resume: `\(session.resumeCommand)`\n\n---\n\n"
+        md += "- Resume: \(inlineCode(session.resumeCommand()))\n\n---\n\n"
         if page.truncatedHead {
             md += "> Note: only the last \(page.entries.count) entries are included.\n\n"
         }
@@ -184,10 +184,41 @@ enum TranscriptLoader {
             case .user: md += "### 🧑 You\n\n\(e.text)\n\n"
             case .assistant: md += "### 🤖 Claude\n\n\(e.text)\n\n"
             case .thinking: md += "<details><summary>Thinking</summary>\n\n\(e.text)\n\n</details>\n\n"
-            case .toolUse(let name): md += "<details><summary>Tool: \(name)</summary>\n\n```json\n\(e.text)\n```\n\n</details>\n\n"
-            case .toolResult: md += "<details><summary>Tool result</summary>\n\n```\n\(e.text)\n```\n\n</details>\n\n"
+            case .toolUse(let name):
+                let f = fence(for: e.text)
+                md += "<details><summary>Tool: \(escapeHTML(name))</summary>\n\n\(f)json\n\(e.text)\n\(f)\n\n</details>\n\n"
+            case .toolResult:
+                let f = fence(for: e.text)
+                md += "<details><summary>Tool result</summary>\n\n\(f)\n\(e.text)\n\(f)\n\n</details>\n\n"
             }
         }
         return md
+    }
+
+    /// Longest run of consecutive backticks in `text`.
+    private static func longestBacktickRun(_ text: String) -> Int {
+        var longest = 0, current = 0
+        for ch in text {
+            current = ch == "`" ? current + 1 : 0
+            longest = max(longest, current)
+        }
+        return longest
+    }
+
+    /// A code fence longer than any backtick run inside `text`, so tool
+    /// output can't close the block early and spill raw markdown/HTML.
+    private static func fence(for text: String) -> String {
+        String(repeating: "`", count: max(3, longestBacktickRun(text) + 1))
+    }
+
+    private static func inlineCode(_ text: String) -> String {
+        let ticks = String(repeating: "`", count: longestBacktickRun(text) + 1)
+        return "\(ticks) \(text) \(ticks)"
+    }
+
+    private static func escapeHTML(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;")
+         .replacingOccurrences(of: "<", with: "&lt;")
+         .replacingOccurrences(of: ">", with: "&gt;")
     }
 }

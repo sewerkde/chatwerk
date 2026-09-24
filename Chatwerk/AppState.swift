@@ -390,7 +390,7 @@ final class AppState: ObservableObject {
     }
 
     func copyCommand(_ session: SessionInfo) {
-        TerminalLauncher.copyToClipboard(session.resumeCommand)
+        TerminalLauncher.copyToClipboard(session.resumeCommand(claude: claudeCommand))
     }
 
 
