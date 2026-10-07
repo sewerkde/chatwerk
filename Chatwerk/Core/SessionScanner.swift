@@ -7,8 +7,9 @@ struct SessionScanner {
 
     private static let chunkSize = 512 * 1024
 
-    /// Stat every top-level `<uuid>.jsonl` under ~/.claude/projects/<dir>/.
-    /// Returns the number of files seen.
+    /// Stat every top-level `<uuid>.jsonl` under ~/.claude/projects/<dir>/,
+    /// plus the subagent transcripts Claude Code keeps next to each session
+    /// in `<dir>/<uuid>/subagents/`. Returns the number of sessions seen.
     @discardableResult
     func statScan() -> Int {
         let fm = FileManager.default
@@ -16,7 +17,10 @@ struct SessionScanner {
             at: ClaudePaths.projectsDir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
         ) else { return 0 }
 
+        let statKeys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey]
         var allPaths: [String] = []
+        var subagentPaths: [String] = []
+        var subagentStats: [Database.SubagentStat] = []
         // If any folder or file couldn't be read, the path list is incomplete —
         // pruning "missing" sessions then would drop healthy rows (and their
         // index) just because of a transient read error.
@@ -33,6 +37,9 @@ struct SessionScanner {
             }
             for file in files where file.pathExtension == "jsonl" {
                 let uuid = file.deletingPathExtension().lastPathComponent
+                // Anything else is not a Claude Code session (and would end up
+                // inside the resume command).
+                guard ClaudePaths.isSessionId(uuid) else { continue }
                 guard let rv = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey]) else {
                     complete = false
                     continue
@@ -43,9 +50,33 @@ struct SessionScanner {
                 allPaths.append(file.path)
                 db.upsertSessionStat(uuid: uuid, projectDir: projectDir, path: file.path,
                                      size: size, modifiedAt: mtime, createdAt: btime)
+
+                // Subagent transcripts bill tokens too; they are indexed for
+                // usage only, never for search. Agent-tool runs sit directly
+                // in subagents/, workflow agents one level deeper under
+                // subagents/workflows/<run>/, so the folder is walked.
+                let subDir = dir.appendingPathComponent(uuid).appendingPathComponent("subagents")
+                guard fm.fileExists(atPath: subDir.path),
+                      let walker = fm.enumerator(at: subDir, includingPropertiesForKeys: Array(statKeys),
+                                                 options: [.skipsHiddenFiles]) else { continue }
+                for case let sub as URL in walker where sub.pathExtension == "jsonl" {
+                    guard let srv = try? sub.resourceValues(forKeys: statKeys) else {
+                        complete = false
+                        continue
+                    }
+                    subagentPaths.append(sub.path)
+                    subagentStats.append(.init(
+                        path: sub.path, uuid: uuid, projectDir: projectDir,
+                        size: Int64(srv.fileSize ?? 0),
+                        modifiedAt: srv.contentModificationDate?.timeIntervalSince1970 ?? 0))
+                }
             }
         }
-        if complete { db.deleteSessionsNotIn(paths: allPaths) }
+        db.upsertSubagentStats(subagentStats)
+        if complete {
+            db.deleteSessionsNotIn(paths: allPaths)
+            db.deleteSubagentFilesNotIn(paths: subagentPaths)
+        }
         return allPaths.count
     }
 

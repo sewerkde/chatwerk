@@ -89,6 +89,31 @@ final class Database {
             cache_write_1h INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (hour, model)
         );
+        CREATE TABLE IF NOT EXISTS session_usage (
+            uuid TEXT NOT NULL,
+            project_dir TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input INTEGER NOT NULL DEFAULT 0,
+            output INTEGER NOT NULL DEFAULT 0,
+            cache_read INTEGER NOT NULL DEFAULT 0,
+            cache_write INTEGER NOT NULL DEFAULT 0,
+            cache_write_1h INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (uuid, project_dir, model)
+        );
+        CREATE TABLE IF NOT EXISTS subagent_files (
+            path TEXT PRIMARY KEY,
+            uuid TEXT NOT NULL,
+            project_dir TEXT NOT NULL,
+            size INTEGER NOT NULL DEFAULT 0,
+            modified_at REAL NOT NULL DEFAULT 0,
+            indexed_offset INTEGER NOT NULL DEFAULT 0,
+            last_usage_msg_id TEXT
+        );
+        CREATE INDEX IF NOT EXISTS subagent_files_session ON subagent_files(uuid, project_dir);
+        CREATE TABLE IF NOT EXISTS kv (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
         """)
 
         // Additive columns for per-session token totals (ignore "already exists").
@@ -99,21 +124,46 @@ final class Database {
         try? execRaw("ALTER TABLE sessions ADD COLUMN last_usage_msg_id TEXT")
         try? execRaw("ALTER TABLE tags ADD COLUMN grp TEXT")
 
-        // Schema v6: before the indexer became single-flight, overlapping runs
-        // could index a chunk twice and inflate usage. Rebuild the index (and
-        // the hour-granularity usage added in v5) once from the transcripts.
+        // Schema v7: usage is now tracked per model within a session and
+        // subagent transcripts are counted too. Both need every transcript
+        // read again, so the index is rebuilt once. (v6 did the same after
+        // the indexer became single-flight.)
         var version: Int32 = 0
         run("PRAGMA user_version") { s in version = sqlite3_column_int(s, 0) }
-        if version < 6 {
+        if version < 7 {
             try execRaw("""
             DELETE FROM fts;
             DELETE FROM usage_daily;
             DELETE FROM usage_hourly;
+            DELETE FROM session_usage;
+            DELETE FROM subagent_files;
             UPDATE sessions SET indexed_offset=0, message_count=0, last_usage_msg_id=NULL,
                 in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0,
                 cache_write_1h_tokens=0;
-            PRAGMA user_version = 6;
+            PRAGMA user_version = 7;
             """)
+        }
+    }
+
+    /// The index describes exactly one Claude data folder. If the app was
+    /// pointed at a different folder since the last launch, everything derived
+    /// from transcripts is dropped (tags, notes and favorites stay — they are
+    /// keyed by session id and simply go dormant); otherwise the usage tables
+    /// would silently add two folders together.
+    func bindToDataDir(_ path: String) {
+        queue.sync {
+            var stored: String?
+            run("SELECT value FROM kv WHERE key='data_dir'") { s in stored = Database.text(s, 0) }
+            if let stored, stored != path {
+                transaction {
+                    var ok = true
+                    for table in ["sessions", "fts", "usage_daily", "usage_hourly", "session_usage", "subagent_files"] {
+                        ok = run("DELETE FROM \(table)") && ok
+                    }
+                    return ok
+                }
+            }
+            run("INSERT INTO kv (key, value) VALUES ('data_dir', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [path])
         }
     }
 
@@ -130,6 +180,15 @@ final class Database {
 
     @discardableResult
     private func run(_ sql: String, _ params: [Any?] = [], row: (((OpaquePointer) -> Void))? = nil) -> Bool {
+        step(sql, params) { s in
+            row?(s)
+            return true
+        }
+    }
+
+    /// Like `run`, but the row callback returns false to stop early.
+    @discardableResult
+    private func step(_ sql: String, _ params: [Any?] = [], row: (OpaquePointer) -> Bool) -> Bool {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             NSLog("Chatwerk SQL prepare failed: %@ — %@", sql, String(cString: sqlite3_errmsg(db)))
@@ -151,7 +210,7 @@ final class Database {
         while true {
             let rc = sqlite3_step(stmt)
             if rc == SQLITE_ROW {
-                if let row, let s = stmt { row(s) }
+                if let s = stmt, !row(s) { return true }
                 continue
             }
             if rc == SQLITE_DONE { return true }
@@ -231,6 +290,8 @@ final class Database {
             }
             for (uuid, dir) in stale {
                 run("DELETE FROM sessions WHERE uuid=? AND project_dir=?", [uuid, dir])
+                run("DELETE FROM session_usage WHERE uuid=? AND project_dir=?", [uuid, dir])
+                run("DELETE FROM subagent_files WHERE uuid=? AND project_dir=?", [uuid, dir])
                 var remaining = 0
                 run("SELECT COUNT(*) FROM sessions WHERE uuid=?", [uuid]) { s in
                     remaining = Int(sqlite3_column_int64(s, 0))
@@ -293,14 +354,114 @@ final class Database {
                 in_tokens=0, out_tokens=0, cache_read_tokens=0, cache_write_tokens=0, cache_write_1h_tokens=0
             WHERE uuid=? AND project_dir=?
             """, [uuid, projectDir])
+            run("DELETE FROM session_usage WHERE uuid=? AND project_dir=?", [uuid, projectDir])
+            // Subagent usage is folded into the session totals, so they
+            // restart from zero as well.
+            run("UPDATE subagent_files SET indexed_offset=0, last_usage_msg_id=NULL WHERE uuid=? AND project_dir=?",
+                [uuid, projectDir])
         }
+    }
+
+    // MARK: - Subagent transcripts
+
+    struct SubagentRow {
+        var path: String
+        var uuid: String
+        var projectDir: String
+        var size: Int64
+        var modifiedAt: Double
+        var indexedOffset: Int64
+        var lastUsageMsgId: String?
+    }
+
+    struct SubagentStat {
+        var path: String
+        var uuid: String
+        var projectDir: String
+        var size: Int64
+        var modifiedAt: Double
+    }
+
+    func upsertSubagentStats(_ stats: [SubagentStat]) {
+        guard !stats.isEmpty else { return }
+        queue.sync {
+            transaction {
+                var ok = true
+                for st in stats {
+                    ok = run("""
+                    INSERT INTO subagent_files (path, uuid, project_dir, size, modified_at)
+                    VALUES (?,?,?,?,?)
+                    ON CONFLICT(path) DO UPDATE SET
+                        uuid=excluded.uuid, project_dir=excluded.project_dir,
+                        size=excluded.size, modified_at=excluded.modified_at
+                    """, [st.path, st.uuid, st.projectDir, st.size, st.modifiedAt]) && ok
+                }
+                return ok
+            }
+        }
+    }
+
+    func deleteSubagentFilesNotIn(paths: [String]) {
+        queue.sync {
+            let existing = Set(paths)
+            var stale: [String] = []
+            run("SELECT path FROM subagent_files") { s in
+                let path = Database.text(s, 0) ?? ""
+                if !existing.contains(path) { stale.append(path) }
+            }
+            for path in stale {
+                run("DELETE FROM subagent_files WHERE path=?", [path])
+            }
+        }
+    }
+
+    func subagentFilesNeedingIndexing() -> [SubagentRow] {
+        queue.sync {
+            var out: [SubagentRow] = []
+            run("""
+            SELECT f.path, f.uuid, f.project_dir, f.size, f.modified_at, f.indexed_offset, f.last_usage_msg_id
+            FROM subagent_files f JOIN sessions s ON s.uuid = f.uuid AND s.project_dir = f.project_dir
+            WHERE f.size > f.indexed_offset ORDER BY f.modified_at DESC
+            """) { s in
+                out.append(SubagentRow(
+                    path: Database.text(s, 0) ?? "",
+                    uuid: Database.text(s, 1) ?? "",
+                    projectDir: Database.text(s, 2) ?? "",
+                    size: sqlite3_column_int64(s, 3),
+                    modifiedAt: sqlite3_column_double(s, 4),
+                    indexedOffset: sqlite3_column_int64(s, 5),
+                    lastUsageMsgId: Database.text(s, 6)))
+            }
+            return out
+        }
+    }
+
+    /// Every project dir a session id is stored under (a session that
+    /// changed directory mid-way has a transcript copy in each).
+    func projectDirs(forUuid uuid: String) -> [String] {
+        queue.sync {
+            var out: [String] = []
+            run("SELECT project_dir FROM sessions WHERE uuid=?", [uuid]) { s in
+                out.append(Database.text(s, 0) ?? "")
+            }
+            return out
+        }
+    }
+
+    /// Where an indexed chunk came from: the session transcript itself, or
+    /// one of its subagent transcripts (which only contribute usage).
+    enum ChunkSource {
+        case session
+        case subagent(path: String)
     }
 
     /// Commits one indexed chunk atomically: FTS rows, the advanced byte
     /// offset and the chunk's token usage land together or not at all — a
     /// crash between them would otherwise leave the offset past usage that
-    /// was never recorded.
-    func commitChunk(uuid: String, projectDir: String, entries: [(role: String, text: String)],
+    /// was never recorded. If the session row disappeared meanwhile (deleted
+    /// during the run), nothing is written.
+    func commitChunk(uuid: String, projectDir: String, source: ChunkSource = .session,
+                     entries: [(role: String, text: String)],
                      newOffset: Int64, addedMessages: Int, usage: ChunkUsage) {
         queue.sync {
             transaction {
@@ -308,17 +469,37 @@ final class Database {
                 for e in entries {
                     ok = run("INSERT INTO fts (uuid, role, content) VALUES (?,?,?)", [uuid, e.role, e.text]) && ok
                 }
-                ok = run("UPDATE sessions SET indexed_offset=?, message_count=message_count+? WHERE uuid=? AND project_dir=?",
-                         [newOffset, addedMessages, uuid, projectDir]) && ok
+                switch source {
+                case .session:
+                    ok = run("UPDATE sessions SET indexed_offset=?, message_count=message_count+? WHERE uuid=? AND project_dir=?",
+                             [newOffset, addedMessages, uuid, projectDir]) && ok
+                case .subagent(let path):
+                    ok = run("UPDATE subagent_files SET indexed_offset=?, last_usage_msg_id=COALESCE(?, last_usage_msg_id) WHERE path=?",
+                             [newOffset, usage.lastMessageId, path]) && ok
+                }
+                guard ok, sqlite3_changes(db) > 0 else { return false }
                 guard usage.session.total > 0 else { return ok }
                 let t = usage.session
                 ok = run("""
                 UPDATE sessions SET in_tokens=in_tokens+?, out_tokens=out_tokens+?,
                     cache_read_tokens=cache_read_tokens+?, cache_write_tokens=cache_write_tokens+?,
                     cache_write_1h_tokens=cache_write_1h_tokens+?,
-                    last_usage_msg_id=COALESCE(?, last_usage_msg_id)
+                    last_usage_msg_id=CASE WHEN ? THEN COALESCE(?, last_usage_msg_id) ELSE last_usage_msg_id END
                 WHERE uuid=? AND project_dir=?
-                """, [t.input, t.output, t.cacheRead, t.cacheWrite, t.cacheWrite1h, usage.lastMessageId, uuid, projectDir]) && ok
+                """, [t.input, t.output, t.cacheRead, t.cacheWrite, t.cacheWrite1h,
+                      { if case .session = source { return true } else { return false } }(),
+                      usage.lastMessageId, uuid, projectDir]) && ok
+                guard ok, sqlite3_changes(db) > 0 else { return false }
+                for (model, b) in usage.byModel {
+                    ok = run("""
+                    INSERT INTO session_usage (uuid, project_dir, model, input, output, cache_read, cache_write, cache_write_1h)
+                    VALUES (?,?,?,?,?,?,?,?)
+                    ON CONFLICT(uuid, project_dir, model) DO UPDATE SET
+                        input=input+excluded.input, output=output+excluded.output,
+                        cache_read=cache_read+excluded.cache_read, cache_write=cache_write+excluded.cache_write,
+                        cache_write_1h=cache_write_1h+excluded.cache_write_1h
+                    """, [uuid, projectDir, model, b.input, b.output, b.cacheRead, b.cacheWrite, b.cacheWrite1h]) && ok
+                }
                 for (table, column, buckets) in [("usage_daily", "day", usage.daily), ("usage_hourly", "hour", usage.hourly)] {
                     for (key, b) in buckets {
                         ok = run("""
@@ -377,6 +558,7 @@ final class Database {
     struct ChunkUsage {
         var session = UsageBucket()
         var lastMessageId: String?
+        var byModel: [String: UsageBucket] = [:]
         var daily: [PeriodKey: UsageBucket] = [:]
         var hourly: [PeriodKey: UsageBucket] = [:]
     }
@@ -440,6 +622,18 @@ final class Database {
                 tagsByUuid[uuid, default: []].append(tag)
             }
 
+            var usageByKey: [String: [ModelUsage]] = [:]
+            run("SELECT uuid, project_dir, model, input, output, cache_read, cache_write, cache_write_1h FROM session_usage") { s in
+                let key = (Database.text(s, 0) ?? "") + "/" + (Database.text(s, 1) ?? "")
+                usageByKey[key, default: []].append(ModelUsage(
+                    model: Database.text(s, 2) ?? "unknown",
+                    input: sqlite3_column_int64(s, 3),
+                    output: sqlite3_column_int64(s, 4),
+                    cacheRead: sqlite3_column_int64(s, 5),
+                    cacheWrite: sqlite3_column_int64(s, 6),
+                    cacheWrite1h: sqlite3_column_int64(s, 7)))
+            }
+
             var out: [SessionInfo] = []
             run("""
             SELECT s.uuid, s.project_dir, s.path, s.cwd, s.title, s.first_prompt, s.last_prompt,
@@ -474,6 +668,7 @@ final class Database {
                 info.cacheReadTokens = sqlite3_column_int64(s, 18)
                 info.cacheWriteTokens = sqlite3_column_int64(s, 19)
                 info.cacheWrite1hTokens = sqlite3_column_int64(s, 20)
+                info.modelUsage = (usageByKey[uuid + "/" + info.projectDir] ?? []).sorted { $0.model < $1.model }
                 info.tags = tagsByUuid[uuid] ?? []
                 out.append(info)
             }
@@ -495,14 +690,18 @@ final class Database {
         return queue.sync {
             var seen = Set<String>()
             var out: [SearchHit] = []
-            run("""
+            // Rows stream in rank order and the walk stops once `limit`
+            // distinct sessions are collected. Limiting rows first would let a
+            // session with hundreds of matching messages crowd out the rest.
+            step("""
             SELECT uuid, snippet(fts, 2, '⟪', '⟫', ' … ', 14) FROM fts
-            WHERE fts MATCH ? ORDER BY rank LIMIT ?
-            """, [match, limit]) { s in
+            WHERE fts MATCH ? ORDER BY rank
+            """, [match]) { s in
                 let uuid = Database.text(s, 0) ?? ""
                 if seen.insert(uuid).inserted {
                     out.append(SearchHit(uuid: uuid, snippet: Database.text(s, 1) ?? ""))
                 }
+                return out.count < limit
             }
             return out
         }
@@ -617,6 +816,8 @@ final class Database {
             run("DELETE FROM fts WHERE uuid=?", [uuid])
             run("DELETE FROM meta WHERE uuid=?", [uuid])
             run("DELETE FROM session_tags WHERE uuid=?", [uuid])
+            run("DELETE FROM session_usage WHERE uuid=?", [uuid])
+            run("DELETE FROM subagent_files WHERE uuid=?", [uuid])
         }
     }
 }

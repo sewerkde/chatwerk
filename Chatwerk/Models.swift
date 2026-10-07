@@ -3,8 +3,21 @@ import SwiftUI
 import AppKit
 
 /// One Claude Code session (a <uuid>.jsonl transcript under ~/.claude/projects/<encoded-cwd>/).
+/// Token usage of one session on one model (a session can switch models).
+struct ModelUsage: Hashable {
+    var model: String
+    var input: Int64
+    var output: Int64
+    var cacheRead: Int64
+    var cacheWrite: Int64
+    var cacheWrite1h: Int64
+}
+
 struct SessionInfo: Identifiable, Hashable {
-    var id: String { projectDir + "/" + uuid }
+    /// The list shows one row per session id (the largest transcript copy
+    /// when a session appears under several project dirs), so the id alone
+    /// keeps the selection stable when that copy changes.
+    var id: String { uuid }
     var uuid: String
     var projectDir: String     // encoded directory name, e.g. "-Users-developer"
     var path: String           // absolute path to the .jsonl transcript
@@ -25,10 +38,19 @@ struct SessionInfo: Identifiable, Hashable {
     var cacheReadTokens: Int64 = 0
     var cacheWriteTokens: Int64 = 0
     var cacheWrite1hTokens: Int64 = 0
+    /// Per-model breakdown of the totals above (filled by the indexer).
+    var modelUsage: [ModelUsage] = []
 
-    /// Estimated cost in dollars, when the model's pricing is known.
+    /// Estimated cost in dollars, when the pricing of at least one model used
+    /// in the session is known. Priced per model: a session that started on
+    /// one model and continued on another is billed on both.
     var estimatedCost: Double? {
-        guard let model else { return nil }
+        let known = modelUsage.compactMap {
+            Pricing.cost(model: $0.model, input: $0.input, output: $0.output,
+                         cacheRead: $0.cacheRead, cacheWrite: $0.cacheWrite, cacheWrite1h: $0.cacheWrite1h)
+        }
+        if !known.isEmpty { return known.reduce(0, +) }
+        guard modelUsage.isEmpty, let model else { return nil }
         return Pricing.cost(model: model, input: inputTokens, output: outputTokens,
                             cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens,
                             cacheWrite1h: cacheWrite1hTokens)
@@ -76,7 +98,9 @@ struct SessionInfo: Identifiable, Hashable {
         } else {
             cd = ""
         }
-        return cd + "claude --resume \(uuid)"
+        // The id comes from a file name; the scanner only admits uuid
+        // characters, and quoting keeps the command safe regardless.
+        return cd + "claude --resume \(shellQuote(uuid))"
     }
 }
 

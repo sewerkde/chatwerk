@@ -54,15 +54,22 @@ enum Cleaner {
         return zipURL
     }
 
-    /// Permanently remove a session and its sidecars from disk.
-    static func delete(session: SessionInfo, liveSessionIds: Set<String>) throws {
+    /// Permanently remove a session and its sidecars from disk, under every
+    /// project dir it was stored in.
+    static func delete(uuid: String, projectDirs: [String], liveSessionIds: Set<String>) throws {
         // The caller's set is a poll snapshot; re-check right before deleting
         // in case the session was resumed in the meantime.
-        guard !liveSessionIds.contains(session.uuid),
-              LiveSessions.current()[session.uuid] == nil else { throw CleanError.sessionIsLive }
+        guard !liveSessionIds.contains(uuid),
+              LiveSessions.current()[uuid] == nil else { throw CleanError.sessionIsLive }
         let fm = FileManager.default
-        for url in ClaudePaths.sidecarPaths(projectDir: session.projectDir, uuid: session.uuid)
-        where fm.fileExists(atPath: url.path) {
+        var urls: [URL] = []
+        var seen = Set<String>()
+        for dir in projectDirs {
+            for url in ClaudePaths.sidecarPaths(projectDir: dir, uuid: uuid) where seen.insert(url.path).inserted {
+                urls.append(url)
+            }
+        }
+        for url in urls where fm.fileExists(atPath: url.path) {
             try fm.removeItem(at: url)
         }
     }

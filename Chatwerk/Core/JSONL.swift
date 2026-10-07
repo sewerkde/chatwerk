@@ -12,14 +12,27 @@ enum JSONL {
 
     /// Read complete lines starting at `offset`.
     /// - `dropFirstPartial`: set when `offset` may fall mid-line (tail reads);
-    ///   the first line fragment is then discarded.
+    ///   the first line fragment is then discarded — unless `offset` turns out
+    ///   to sit exactly on a line boundary, in which case nothing is dropped.
+    /// - `holdTrailingFragment`: trailing bytes without a newline are a line
+    ///   still being written. Mid-file they always wait for the next read; at
+    ///   EOF they are normally returned as a line, but an indexer must leave
+    ///   them (and not advance past them), or the finished message is never
+    ///   seen again.
     /// - Grows the read window when no newline fits in `length`; a pathological
     ///   line above `maxLineBytes` is skipped entirely.
     /// - `nextOffset` always lands on a line boundary, so callers can resume there.
-    static func readLines(path: String, offset: UInt64, length: Int, dropFirstPartial: Bool = false)
+    static func readLines(path: String, offset: UInt64, length: Int, dropFirstPartial: Bool = false,
+                          holdTrailingFragment: Bool = false)
         -> (lines: [Data], nextOffset: UInt64, atEOF: Bool)? {
         guard let fh = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? fh.close() }
+
+        var dropFirst = dropFirstPartial && offset > 0
+        if dropFirst, let prev = try? seekAndRead(fh, offset: offset - 1, count: 1),
+           prev.first == UInt8(ascii: "\n") {
+            dropFirst = false
+        }
 
         var readLen = length
         while true {
@@ -31,10 +44,10 @@ enum JSONL {
 
                 var lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true).map { Data($0) }
                 var consumed = data.count
-                if data.last != UInt8(ascii: "\n"), !atEOF, let last = lines.popLast() {
-                    consumed -= last.count   // trailing partial line: leave for next read
+                if data.last != UInt8(ascii: "\n"), !atEOF || holdTrailingFragment, let last = lines.popLast() {
+                    consumed -= last.count   // partial line: leave for a later read
                 }
-                if dropFirstPartial, offset > 0, !lines.isEmpty {
+                if dropFirst, !lines.isEmpty {
                     lines.removeFirst()
                 }
 
@@ -52,6 +65,11 @@ enum JSONL {
                 return nil
             }
         }
+    }
+
+    private static func seekAndRead(_ fh: FileHandle, offset: UInt64, count: Int) throws -> Data {
+        try fh.seek(toOffset: offset)
+        return (try fh.read(upToCount: count)) ?? Data()
     }
 
     private static func skipToNextNewline(fh: FileHandle, from: UInt64) -> UInt64 {

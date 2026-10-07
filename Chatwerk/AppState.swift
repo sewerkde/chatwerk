@@ -29,9 +29,16 @@ final class AppState: ObservableObject {
     let db: Database
     private var indexerRunning = false
     private var indexerRerunRequested = false
+    private var scanRunning = false
+    private var scanRerunRequested = false
     private var refreshTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var lastScanSignature: String = ""
+    /// Bumped by every user edit to `sessions` (tags, notes, favorites,
+    /// deletes). A background reload that started before an edit is stale
+    /// and must not overwrite it.
+    private var mutationVersion = 0
+    private var lastProgressReload = Date.distantPast
 
     // Settings
     @AppStorage("terminalKind") var terminalKindRaw: String = TerminalKind.terminal.rawValue
@@ -49,6 +56,7 @@ final class AppState: ObservableObject {
 
     init() {
         db = Self.openDatabase()
+        db.bindToDataDir(ClaudePaths.claudeDir.path)
         claudeDirMissing = !ClaudePaths.exists
         retentionDays = Self.readRetentionDays()
         sessions = Self.deduped(db.loadAllSessions())
@@ -128,7 +136,17 @@ final class AppState: ObservableObject {
     // MARK: - Background scan / index / live poll
 
     private func startBackgroundWork() {
-        if !claudeDirMissing { rescanAndReload(fullIndex: true) }
+        if !claudeDirMissing {
+            // Seed the change signature with the state this first scan sees;
+            // otherwise the first poll always finds it "changed" and runs the
+            // whole scan a second time five seconds in.
+            Task { [weak self] in
+                let sig = await Task.detached(priority: .utility) { Self.scanSignature() }.value
+                guard let self else { return }
+                self.lastScanSignature = sig
+                self.rescanAndReload()
+            }
+        }
 
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -190,33 +208,55 @@ final class AppState: ObservableObject {
         if days != retentionDays { retentionDays = days }
         if sig != lastScanSignature {
             lastScanSignature = sig
-            rescanAndReload(fullIndex: true)
+            rescanAndReload()
         }
     }
 
-    private func rescanAndReload(fullIndex: Bool) {
+    /// Scan → reload → index, single-flight: a request that arrives while a
+    /// pass runs schedules one more pass instead of a second concurrent one.
+    private func rescanAndReload() {
+        if scanRunning {
+            scanRerunRequested = true
+            return
+        }
+        scanRunning = true
+        Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                self.scanRerunRequested = false
+                let database = self.db
+                await Task.detached(priority: .utility) {
+                    let scanner = SessionScanner(db: database)
+                    scanner.statScan()
+                    scanner.refreshDetails()
+                }.value
+                await self.reloadSessionsFromDB()
+                await self.runIndexer()
+            } while self.scanRerunRequested
+            self.scanRunning = false
+        }
+    }
+
+    /// Replaces `sessions` with the database's current rows, unless the user
+    /// edited something while the rows were being read — then the read is
+    /// repeated so the edit can't be overwritten by a stale snapshot.
+    private func reloadSessionsFromDB() async {
         let database = db
-        Task.detached(priority: .utility) { [weak self] in
-            let scanner = SessionScanner(db: database)
-            scanner.statScan()
-            scanner.refreshDetails()
-            let loaded = Self.deduped(database.loadAllSessions())
-            await MainActor.run { [weak self] in
-                guard let self else { return }
-                // Stamp transient state before comparing, so an unchanged scan
-                // publishes nothing and the UI isn't churned every poll.
-                var stamped = loaded
-                for i in stamped.indices {
-                    stamped[i].isLive = self.liveIds.contains(stamped[i].uuid)
-                    stamped[i].liveStatus = self.liveStatusById[stamped[i].uuid]
-                }
-                if stamped != self.sessions {
-                    self.sessions = stamped
-                }
+        for _ in 0..<3 {
+            let version = mutationVersion
+            let loaded = await Task.detached(priority: .utility) { Self.deduped(database.loadAllSessions()) }.value
+            guard version == mutationVersion else { continue }
+            // Stamp transient state before comparing, so an unchanged scan
+            // publishes nothing and the UI isn't churned every poll.
+            var stamped = loaded
+            for i in stamped.indices {
+                stamped[i].isLive = liveIds.contains(stamped[i].uuid)
+                stamped[i].liveStatus = liveStatusById[stamped[i].uuid]
             }
-            if fullIndex {
-                await self?.runIndexer()
+            if stamped != sessions {
+                sessions = stamped
             }
+            return
         }
     }
 
@@ -235,7 +275,14 @@ final class AppState: ObservableObject {
             let indexer = Indexer(db: db)
             indexer.progress = { [weak self] done, total in
                 Task { @MainActor [weak self] in
-                    self?.indexProgress = done >= total ? nil : (done, total)
+                    guard let self else { return }
+                    self.indexProgress = done >= total ? nil : (done, total)
+                    // A first index of hundreds of transcripts takes a while;
+                    // let counts and costs trickle into the list meanwhile.
+                    if Date().timeIntervalSince(self.lastProgressReload) > 3 {
+                        self.lastProgressReload = Date()
+                        await self.reloadSessionsFromDB()
+                    }
                 }
             }
             await Task.detached(priority: .background) {
@@ -244,6 +291,8 @@ final class AppState: ObservableObject {
         } while indexerRerunRequested
         indexerRunning = false
         indexProgress = nil
+        // Message counts, token totals and costs changed under the rows.
+        await reloadSessionsFromDB()
         // New content may satisfy the current search.
         if !searchText.isEmpty { performSearch() }
     }
@@ -438,6 +487,7 @@ final class AppState: ObservableObject {
                 }
             }
         }
+        mutationVersion += 1
         apply(&sessions)
         if var results = searchResults {
             apply(&results)
@@ -487,6 +537,7 @@ final class AppState: ObservableObject {
     func deleteTag(_ tag: TagInfo) {
         db.deleteTag(id: tag.id)
         tags = db.allTags()
+        mutationVersion += 1
         for i in sessions.indices {
             sessions[i].tags.removeAll { $0.id == tag.id }
         }
@@ -506,8 +557,12 @@ final class AppState: ObservableObject {
 
     func delete(_ session: SessionInfo) {
         do {
-            try Cleaner.delete(session: session, liveSessionIds: liveIds)
+            // A session that changed directory mid-way has a transcript copy
+            // under each project dir; the list shows one, the disk holds all.
+            let dirs = Set(db.projectDirs(forUuid: session.uuid) + [session.projectDir])
+            try Cleaner.delete(uuid: session.uuid, projectDirs: Array(dirs), liveSessionIds: liveIds)
             db.purgeSession(uuid: session.uuid)
+            mutationVersion += 1
             sessions.removeAll { $0.uuid == session.uuid }
             searchResults?.removeAll { $0.uuid == session.uuid }
             if selectedSessionId == session.id { selectedSessionId = nil }
@@ -530,6 +585,7 @@ final class AppState: ObservableObject {
     }
 
     private func mutateSession(uuid: String, _ change: (inout SessionInfo) -> Void) {
+        mutationVersion += 1
         for i in sessions.indices where sessions[i].uuid == uuid {
             change(&sessions[i])
         }
