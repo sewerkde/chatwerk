@@ -110,7 +110,13 @@ struct MenuBarPanel: View {
             HStack {
                 Button("Open Chatwerk") {
                     dismiss()
-                    openWindow(id: "main")
+                    // Re-front the existing window; opening the scene again
+                    // would create a second main window.
+                    if let window = state.mainWindow, window.isVisible || window.isMiniaturized {
+                        window.makeKeyAndOrderFront(nil)
+                    } else {
+                        openWindow(id: "main")
+                    }
                     NSApp.activate()
                 }
                 Spacer()

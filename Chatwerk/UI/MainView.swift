@@ -18,6 +18,9 @@ private struct WindowAccessor: NSViewRepresentable {
 struct MainView: View {
     @EnvironmentObject var state: AppState
     @State private var pendingDelete: SessionInfo?
+    /// Item count and byte size of what a pending delete would remove,
+    /// measured off the main thread (sidecar folders can hold thousands of files).
+    @State private var deletePreview: (count: Int, size: Int64)?
     @State private var showStats = false
     @State private var showNewTag = false
     @State private var newTagTarget: SessionInfo?
@@ -104,10 +107,21 @@ struct MainView: View {
                 pendingDelete = nil
             }
             Button("Cancel", role: .cancel) { pendingDelete = nil }
-        } message: { session in
-            let items = Cleaner.previewPaths(session: session)
-            let total = items.reduce(Int64(0)) { $0 + $1.size }
-            Text("Removes the transcript and all sidecar data (\(items.count) items, \(total.byteString)) from ~/.claude. This cannot be undone.")
+        } message: { _ in
+            if let preview = deletePreview {
+                Text("Removes the transcript and all sidecar data (\(preview.count) items, \(preview.size.byteString)) from ~/.claude. This cannot be undone.")
+            } else {
+                Text("Removes the transcript and all sidecar data from ~/.claude. This cannot be undone.")
+            }
+        }
+        .task(id: pendingDelete?.id) {
+            deletePreview = nil
+            guard let session = pendingDelete else { return }
+            let preview = await Task.detached(priority: .userInitiated) { () -> (Int, Int64) in
+                let items = Cleaner.previewPaths(session: session)
+                return (items.count, items.reduce(Int64(0)) { $0 + $1.size })
+            }.value
+            if !Task.isCancelled { deletePreview = preview }
         }
         .overlay {
             if state.claudeDirMissing {

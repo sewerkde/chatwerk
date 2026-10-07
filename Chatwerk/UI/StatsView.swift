@@ -78,6 +78,12 @@ struct StatsView: View {
             ?? Date().addingTimeInterval(-30 * 86_400)
     }
 
+    /// The axis runs to the end of today, so today's bar is drawn whole
+    /// instead of clipped at the current moment.
+    private var chartEnd: Date {
+        Self.utcCalendar.date(byAdding: .day, value: 1, to: Self.utcCalendar.startOfDay(for: Date())) ?? Date()
+    }
+
     private var last30Days: [DayCost] {
         let cutoff = chartCutoff
         var byDay: [String: Double] = [:]
@@ -215,7 +221,10 @@ struct StatsView: View {
                             }
                     }
                 }
-                .chartXScale(domain: chartCutoff...Date())
+                .chartXScale(domain: chartCutoff...chartEnd)
+                // Bars are keyed by UTC days; bucket and label them on the
+                // same calendar or a late-evening day lands on tomorrow's bar.
+                .environment(\.calendar, Self.utcCalendar)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .day, count: 7)) {
                         AxisGridLine()

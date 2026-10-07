@@ -30,7 +30,9 @@ struct ChatwerkApp: App {
                     if let s = state.selectedSession { state.open(s) }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(state.selectedSession == nil)
+                // The quick-search palette uses ⌘↩ for its own highlighted
+                // result; while it is open the menu must not swallow the key.
+                .disabled(state.selectedSession == nil || state.showQuickSearch)
                 Button("Copy Resume Command") {
                     if let s = state.selectedSession { state.copyCommand(s) }
                 }

@@ -12,6 +12,7 @@ struct DetailView: View {
     @State private var pendingSaveUuid: String?
     @State private var transcript: TranscriptPage?
     @State private var loadingTranscript = false
+    @State private var loadedSessionId: String?
     @State private var showNewTag = false
     @State private var tagSearch = ""
 
@@ -51,10 +52,16 @@ struct DetailView: View {
             customTitle = session.customTitle ?? ""
             note = session.note ?? ""
         }
-        .task(id: session.id) {
-            transcript = nil
-            loadingTranscript = true
-            defer { loadingTranscript = false }
+        // Keyed on the transcript size too: a running session keeps growing,
+        // and the viewer should show the new exchange without re-selecting.
+        .task(id: "\(session.id)|\(session.size)") {
+            let switchedSession = loadedSessionId != session.id
+            if switchedSession {
+                // Keep the old page visible while the same session refreshes;
+                // only a different session starts from a blank spinner.
+                transcript = nil
+                loadingTranscript = true
+            }
             let path = session.path
             let job = Task.detached(priority: .userInitiated) {
                 TranscriptLoader.load(path: path)
@@ -64,9 +71,12 @@ struct DetailView: View {
             } onCancel: {
                 job.cancel()
             }
-            if !Task.isCancelled {
-                transcript = page
-            }
+            // A cancelled load belongs to a selection that is already gone;
+            // its replacement owns the spinner now.
+            guard !Task.isCancelled else { return }
+            transcript = page
+            loadedSessionId = session.id
+            loadingTranscript = false
         }
         .sheet(isPresented: $showNewTag) {
             TagEditorSheet(assignTo: current)
