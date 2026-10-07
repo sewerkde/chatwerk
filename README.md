@@ -81,7 +81,7 @@ Claude Code stores every session as a JSONL transcript under `~/.claude/projects
 
 1. **Scans** those files with a cheap stat pass every few seconds — new and changed sessions appear live, and `~/.claude/sessions` tells it which ones are running right now
 2. **Reads only head/tail chunks** of each transcript for titles (Claude Code's own `ai-title` lines) and metadata, so even 250 MB sessions list instantly
-3. **Indexes** message text incrementally into a local SQLite FTS5 database (`~/Library/Application Support/Chatwerk/index.db`) — transcripts are append-only, so only new bytes get parsed
+3. **Indexes** message text incrementally into a local SQLite FTS5 database (`~/Library/Application Support/Chatwerk/index.db`) — transcripts are append-only, so only new bytes get parsed. Token usage is summed per model from the same pass, including the subagent transcripts Claude Code keeps in `<uuid>/subagents/`
 4. **Resumes** sessions by telling your terminal to run `cd <project> && claude --resume <uuid>`
 
 Your notes, tags, favorites and custom titles live only in Chatwerk's database. Chatwerk never modifies `~/.claude` — except when *you* explicitly archive or delete a session, which also removes its sidecar folders (`file-history`, `tasks`, subagent transcripts).
@@ -105,7 +105,7 @@ Maybe later — the scanner/indexer layer is provider-shaped, but v1 stays focus
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and a map of the codebase. Bug reports and feature ideas via [Issues](../../issues) — and if Chatwerk saves you time, a ⭐ helps others find it.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and a map of the codebase, and [SECURITY.md](SECURITY.md) for how to report a vulnerability privately. Bug reports and feature ideas via [Issues](../../issues) — and if Chatwerk saves you time, a ⭐ helps others find it.
 
 ## Roadmap
 
